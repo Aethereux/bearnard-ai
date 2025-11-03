@@ -1,4 +1,4 @@
-```markdown
+
 # 🎓 Bearnard – iACADEMY Concierge AI (Offline & Local)
 
 Bearnard is an offline AI concierge that runs **entirely on your laptop**, with no APIs and no internet.
