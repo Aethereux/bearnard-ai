@@ -6,7 +6,7 @@ It can answer questions about the school, search local data (RAG), listen to you
 
 ---
 
-## ✅ 1. Download the AI Model (Mistral 7B)
+## 1. Download the AI Model (Mistral 7B)
 
 Download this file:
 
@@ -30,7 +30,7 @@ bearnard-ai/
 
 ---
 
-## ✅ 2. Create Virtual Environment
+## 2. Create Virtual Environment
 
 ### **macOS / Linux**
 ```bash
@@ -47,7 +47,7 @@ python -m venv venv
 
 ---
 
-## ✅ 3. Install Dependencies
+##  3. Install Dependencies
 
 ```bash
 pip install llama-cpp-python chromadb sentence-transformers faster-whisper pyttsx3 sounddevice torch torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -61,7 +61,7 @@ brew install portaudio
 
 ---
 
-## ✅ 4. Run Bearnard
+##  4. Run Bearnard
 
 ```bash
 python app/main.py
@@ -81,7 +81,7 @@ Then say:
 
 ---
 
-## ✅ AI Logic & System Components
+##  AI Logic & System Components
 
 | Component               | Purpose                                    |
 | ----------------------- | ------------------------------------------ |
@@ -95,7 +95,7 @@ Then say:
 
 ---
 
-## ✅ Future Enhancements (Planned)
+##  Future Enhancements (Planned)
 
 ✔ Avatar + animated talking face (PyQt6 GUI)
 ✔ Load real school directory / schedules into RAG
