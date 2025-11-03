@@ -11,9 +11,7 @@ It can answer questions about the school, search local data (RAG), listen to you
 Download this file:
 
 ```
-
-[https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF/resolve/main/mistral-7b-v0.1.Q4_K_M.gguf?download=true](https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF/resolve/main/mistral-7b-v0.1.Q4_K_M.gguf?download=true)
-
+https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF/resolve/main/mistral-7b-v0.1.Q4_K_M.gguf?download=true
 ```
 
 Create a `models/` folder in the project and place the file inside:
