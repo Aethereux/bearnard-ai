@@ -29,5 +29,5 @@ class WakeWordDetector:
         if text:
             print(f"🗣 Heard: {text}")
 
-        wake_variants = ["hey bearnard", "hey bernard", "hey bear nard", "hey bernard"]
+        wake_variants = ["hey bearnard", "hey bernard", "hey bear nard", "hey bearnard.", "hey, bernard.", "bearnard", "hey"]
         return any(word in text for word in wake_variants)

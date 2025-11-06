@@ -7,29 +7,21 @@ from voice_input import VoiceInput
 from voice_output import VoiceOutput
 from wake_word import WakeWordDetector
 
-# -------------------------------
-# 1. Mode Selection (Voice/Text)
-# -------------------------------
 def choose_mode():
     print("\nChoose Mode:")
     print("1 = 🎤 Voice Mode (Wake Word + Mic)")
-    print("2 = ⌨️  Text Mode (Keyboard Only)")
+    print("2 = ⌨️  Text Mode (Type your questions)")
     while True:
-        choice = input("\nEnter 1 or 2: ")
+        choice = input("Enter 1 or 2: ")
         if choice == "1":
-            print("✅ Voice Mode Selected")
             return "voice"
         elif choice == "2":
-            print("✅ Text Mode Selected")
             return "text"
         else:
             print("❌ Invalid. Try again.")
 
-# -------------------------------
-# 2. Microphone Selection
-# -------------------------------
 def choose_microphone():
-    print("\nAvailable Input Devices:")
+    print("\n🎤 Available Input Devices:")
     devices = sd.query_devices()
     for i, dev in enumerate(devices):
         if dev['max_input_channels'] > 0:
@@ -37,18 +29,14 @@ def choose_microphone():
 
     while True:
         try:
-            choice = int(input("\nSelect microphone device index: "))
+            choice = int(input("\nSelect mic device index: "))
             if 0 <= choice < len(devices) and devices[choice]['max_input_channels'] > 0:
-                print(f"✅ Selected Mic: {devices[choice]['name']}\n")
+                print(f"✅ Selected: {devices[choice]['name']}")
                 return choice
-            else:
-                print("❌ Invalid choice. Try again.")
         except ValueError:
-            print("❌ Please enter a number.")
+            pass
+        print("❌ Invalid. Try again.")
 
-# -------------------------------
-# 3. Build LLM + RAG Prompt
-# -------------------------------
 def build_prompt(user_query: str, context_docs: list[str]) -> str:
     context = "\n\n".join(context_docs)
     return f"""
@@ -62,18 +50,10 @@ Context:
 User: {user_query}
 Assistant:"""
 
-
-# -------------------------------
-# 4. MAIN PROGRAM
-# -------------------------------
 def main():
-    mode = choose_mode()  # "voice" or "text"
+    mode = choose_mode()
+    mic_index = choose_microphone() if mode == "voice" else None
 
-    mic_index = None
-    if mode == "voice":
-        mic_index = choose_microphone()
-
-    # Initialize core components
     llm = LLM()
     rag = Rag(build_if_empty=True)
     ear = VoiceInput(device=mic_index)
@@ -84,35 +64,14 @@ def main():
     user_text = ""
     answer = ""
 
-    print("\nBearnard is running locally.\n")
+    print("\nBearnard is running locally. Say 'Hey Bearnard' or type a question.\n")
 
     while True:
-        # =====================
-        # TEXT MODE OPERATION
-        # =====================
         if mode == "text":
-            user_text = input("\nYou: ")
-            
-            if user_text.lower() in ["exit", "quit"]:
-                print("👋 Goodbye.")
-                break
-
-            # Switch modes any time
-            if user_text.lower() == ":voice":
-                mode = "voice"
-                mic_index = choose_microphone()
-                wake = WakeWordDetector(device=mic_index)
-                ear = VoiceInput(device=mic_index)
-                state = State.IDLE
-                print("🎤 Switched to Voice Mode")
-                continue
-
+            user_text = input("You: ")
             state = State.THINKING
 
-        # =====================
-        # VOICE MODE: IDLE
-        # =====================
-        if mode == "voice" and state == State.IDLE:
+        elif mode == "voice" and state == State.IDLE:
             if wake.listen_for_wake_word():
                 print("✅ Wake word detected.")
                 state = State.WAKE_DETECTED
@@ -122,25 +81,12 @@ def main():
             print("🎤 Listening for your question...")
             state = State.LISTENING
 
-        # =====================
-        # VOICE MODE: LISTENING
-        # capture + transcribe
-        # =====================
         if state == State.LISTENING:
             audio = ear.record_until_silence()
             user_text = ear.transcribe(audio)
             print(f"🗣 You said: {user_text}")
-
-            if not user_text.strip():
-                print("❌ No question detected. Returning to IDLE.")
-                state = State.IDLE
-                continue
-
             state = State.THINKING
 
-        # =====================
-        # THINKING (Common)
-        # =====================
         if state == State.THINKING:
             print("🤔 Thinking...")
             docs = rag.search(user_text, n_results=3)
@@ -148,9 +94,6 @@ def main():
             answer = llm.ask(prompt)
             state = State.SPEAKING
 
-        # =====================
-        # SPEAK ANSWER
-        # =====================
         if state == State.SPEAKING:
             print(f"\nBearnard: {answer}\n")
             if mode == "voice":
