@@ -5,6 +5,8 @@ Bearnard is an offline AI concierge that runs **entirely on your laptop**, with 
 It can answer questions about the school, search local data (RAG), listen to your voice, and even talk back.
 
 ---
+## For Systems w/o C++ Compiler
+Install the vs_Build tools through: https://visualstudio.microsoft.com/downloads/
 
 ## 1. Download the AI Model (Mistral 7B)
 
@@ -50,6 +52,7 @@ python -m venv venv
 ```bash
 pip install llama-cpp-python chromadb sentence-transformers faster-whisper pyttsx3 sounddevice torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 ```
+note: -- index-url no longer needs to be installed (atm)
 
 **macOS only (if microphone errors):**
 
