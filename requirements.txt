@@ -1,0 +1,9 @@
+llama-cpp-python
+chromadb
+sentence-transformers
+faster-whisper
+pyttsx3
+sounddevice
+pypdf
+torch
+torchaudio

@@ -1,5 +1,7 @@
 import time
+import datetime
 import sounddevice as sd
+from faster_whisper import WhisperModel
 from state import State
 from llm import LLM
 from rag import Rag
@@ -7,10 +9,12 @@ from voice_input import VoiceInput
 from voice_output import VoiceOutput
 from wake_word import WakeWordDetector
 
+# --- REMOVED WAKEWORD IMPORT ---
+
 def choose_mode():
     print("\nChoose Mode:")
-    print("1 = 🎤 Voice Mode (Wake Word + Mic)")
-    print("2 = ⌨️  Text Mode (Type your questions)")
+    print("1 = 🎤 Voice Mode (Continuous Conversation)")
+    print("2 = ⌨️  Text Mode (Type + Voice Output)")
     while True:
         choice = input("Enter 1 or 2: ")
         if choice == "1":
@@ -37,68 +41,99 @@ def choose_microphone():
             pass
         print("❌ Invalid. Try again.")
 
+
 def build_prompt(user_query: str, context_docs: list[str]) -> str:
-    context = "\n\n".join(context_docs)
-    return f"""
-You are Bearnard, the concierge AI of iACADEMY.
-Use the context below ONLY if it's relevant to answer the user's question.
-If you don't know the answer, just say so briefly.
+    if context_docs:
+        formatted_context = "\n---\n".join(context_docs)
+    else:
+        formatted_context = "NO_DATA_FOUND"
 
-Context:
-{context}
+    current_time = datetime.datetime.now().strftime("%A, %I:%M %p")
 
-User: {user_query}
-Assistant:"""
+    return f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus).
+Current Time: {current_time}
+
+### INSTRUCTIONS:
+1. **SOURCE OF TRUTH:** specific answer is found in the [CONTEXT] block below, use it.
+2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND" or does not contain the answer, say exactly: "I'm sorry, I don't have that information in my current records."
+3. **OFF-TOPIC:** If the user asks about math, coding, or general world trivia (not related to iACADEMY), politely decline.
+4. **VOICE OPTIMIZATION:** You are speaking to the user.
+   - Keep answers **short** (under 2 sentences if possible).
+   - Do NOT use lists, bullet points, or markdown formatting.
+   - If listing items, separate them with commas for natural speech.
+
+### [CONTEXT]
+{formatted_context}
+
+### [USER QUESTION]
+{user_query}
+
+### [BEARNARD'S ANSWER]
+[/INST]"""
 
 def main():
     mode = choose_mode()
     mic_index = choose_microphone() if mode == "voice" else None
 
+    print("\n⏳ Loading Whisper (Shared)...")
+    # 'base.en' is the sweet spot for accuracy/speed on local CPU
+    shared_whisper = WhisperModel("base.en", device="cpu", compute_type="int8")
+    print("✅ Whisper Loaded.")
+
     llm = LLM()
     rag = Rag(build_if_empty=True)
-    ear = VoiceInput(device=mic_index)
+    
+    # Initialize both Ear (Recorder) and Wake (Sentry)
+    ear = VoiceInput(model=shared_whisper, device=mic_index)
+    wake = WakeWordDetector(model=shared_whisper, device=mic_index)
     mouth = VoiceOutput()
-    wake = WakeWordDetector(device=mic_index)
-
+    
     state = State.IDLE
-    user_text = ""
-    answer = ""
 
-    print("\nBearnard is running locally. Say 'Hey Bearnard' or type a question.\n")
+    print("\n🐻 Bearnard is ready. Say 'Hey Bearnard'.\n")
 
     while True:
-        if mode == "text":
+        # --- PHASE 1: WAKE WORD ---
+        if mode == "voice" and state == State.IDLE:
+            # Blocks here until wake word is heard
+            if wake.listen_for_wake_word():
+                print("\a") # BEEP SOUND
+                state = State.LISTENING
+            continue
+
+        # --- PHASE 2: RECORD QUESTION ---
+        if mode == "voice" and state == State.LISTENING:
+            audio = ear.record_until_silence()
+            
+            print("📝 Transcribing...")
+            user_text = ear.transcribe(audio)
+            print(f"🗣 You said: {user_text}")
+            
+            if not user_text.strip():
+                print("🤷 Heard nothing.")
+                state = State.IDLE
+                continue
+            state = State.THINKING
+            
+        elif mode == "text":
             user_text = input("You: ")
             state = State.THINKING
 
-        elif mode == "voice" and state == State.IDLE:
-            if wake.listen_for_wake_word():
-                print("✅ Wake word detected.")
-                state = State.WAKE_DETECTED
-            continue
-
-        if state == State.WAKE_DETECTED:
-            print("🎤 Listening for your question...")
-            state = State.LISTENING
-
-        if state == State.LISTENING:
-            audio = ear.record_until_silence()
-            user_text = ear.transcribe(audio)
-            print(f"🗣 You said: {user_text}")
-            state = State.THINKING
-
+        # --- PHASE 3: THINK & SPEAK ---
         if state == State.THINKING:
             print("🤔 Thinking...")
-            docs = rag.search(user_text, n_results=3)
+            docs = rag.search(user_text)
+            
+            # Dynamic Token Limit (Short answers normally, Long for lists)
+            token_limit = 1024 if "list" in user_text.lower() else 256
+            
             prompt = build_prompt(user_text, docs)
-            answer = llm.ask(prompt)
-            state = State.SPEAKING
-
-        if state == State.SPEAKING:
-            print(f"\nBearnard: {answer}\n")
-            if mode == "voice":
-                mouth.speak(answer)
-            state = State.IDLE
+            answer = llm.ask(prompt, max_tokens=token_limit)
+            
+            print(f"\n🐻 Bearnard: {answer}\n")
+            mouth.speak(answer)
+            
+            state = State.IDLE # Go back to sleep
 
         time.sleep(0.1)
 
