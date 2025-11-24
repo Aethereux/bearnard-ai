@@ -4,6 +4,5 @@ sentence-transformers
 faster-whisper
 pyttsx3
 sounddevice
+numpy
 pypdf
-torch
-torchaudio
