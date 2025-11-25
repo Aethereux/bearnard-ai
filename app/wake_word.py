@@ -28,13 +28,19 @@ class WakeWordDetector:
         # Threshold below which we don't even bother checking for words
         self.energy_threshold = 0.005 
 
-    def listen_for_wake_word(self):
-        print("\n💤 Waiting for wake word...", end="", flush=True)
+    def listen_for_wake_word(self, timeout=None):
+        # print("\n💤 Waiting for wake word...", end="", flush=True) # Optional: comment out to reduce spam
         self.audio_buffer.clear()
         
         chunk_samples = int(self.sample_rate * self.chunk_duration)
+        start_time = time.time()
 
         while True:
+            # --- NEW: Timeout Check ---
+            if timeout and (time.time() - start_time > timeout):
+                return False
+            # --------------------------
+
             # 1. Record small chunk
             chunk = sd.rec(
                 chunk_samples,
@@ -46,20 +52,18 @@ class WakeWordDetector:
             sd.wait()
             chunk = chunk.flatten()
 
-            # 2. Add to Ring Buffer (Oldest chunk automatically drops off)
+            # 2. Add to Ring Buffer
             self.audio_buffer.append(chunk)
 
             # 3. Energy Gate Check
             vol = np.sqrt(np.mean(chunk**2))
             if vol < self.energy_threshold:
-                # If silent, skip the heavy AI transcription
                 continue 
 
-            # 4. Transcribe the Ring Buffer (The last 2 seconds)
+            # 4. Transcribe the Ring Buffer
             full_audio = np.concatenate(self.audio_buffer)
             
             try:
-                # Beam_size=1 is the fastest possible setting
                 segments, _ = self.model.transcribe(
                     full_audio, 
                     beam_size=1, 
@@ -68,8 +72,6 @@ class WakeWordDetector:
                 )
                 
                 text = " ".join(seg.text for seg in segments).strip().lower()
-                
-                # Clean punctuation for easier matching
                 text = text.replace(",", "").replace(".", "").replace("!", "")
 
                 if any(variant in text for variant in self.wake_variants):
