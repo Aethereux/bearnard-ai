@@ -1,6 +1,6 @@
 TOPIC: BEARNARD AI ORIGIN
 Created by: NEXUS
-Team Members: Euclid Jan Guillermo, Francine Gabrielle Garcia, and Alexander Ferrer.
+Team Members: Euclid Jan Guillermo, Gabrielle Francine Garcia, and Alexander Ferrer.
 
 
 TOPIC: iACADEMY GENERAL INFORMATION
@@ -13,47 +13,24 @@ The college has two campuses:
 2. Cebu Campus, which was formally inaugurated in 2023.
 
 
-TOPIC: HISTORY (2002 - 2009)
+TOPIC: HISTORY 
 2002: iACADEMY was established.
 2009: iACADEMY became an Authorized Training Partner of Wacom, a Japanese company that produces graphics tablets. It was also designated as the first IBM Center of Excellence in the ASEAN region.
-
-
-TOPIC: HISTORY (2010 - PARTNERSHIPS)
-In 2010, iACADEMY partnered with Runway Philippines Season 3 & 4. It also partnered with TV5 during the first automated elections in the Philippines. Together with DZRH, MBC, LENTE, Stratbase, ePLDT, and SWS, they worked on election coverage. In the same year, the college was appointed the first IBM Software Center of Excellence in the ASEAN Region and the first Lotus Academic Institute.
-
-
-TOPIC: HISTORY (2011 - 2016)
-2011: Chosen by Solar Entertainment Corporation as the official partner-school of Project Runway Philippines Season 3.
-2015: Held the first 24-hour game competition called Battle League.
+2010: iACADEMY partnered with Runway Philippines Season 3 & 4. It also partnered with TV5 during the first automated elections in the Philippines. Together with DZRH, MBC, LENTE, Stratbase, ePLDT, and SWS, they worked on election coverage. In the same year, the college was appointed the first IBM Software Center of Excellence in the ASEAN Region and the first Lotus Academic Institute.
 2016: Began offering specialized Senior High School programs.
-
-
-TOPIC: HISTORY (2017 - GAME DEVELOPMENT)
 2017: Began providing training and certification with UNITY as a Certified Training and Certification Partner. Became the official partner of the International Game Developers Association (IGDA) in hosting Manila Game Jam 2017.
-
-
-TOPIC: HISTORY (2019 - TOON BOOM & PARTNERSHIPS)
 2019: Partnered with PricewaterhouseCoopers for the Accountancy program. Recognized as the first and only Toon Boom Center of Excellence in Asia. Partnered with PythonPH to host PyCon APAC 2019. Became the first educational institution partner of the Department of Tourism (DOT) to develop a travel app and the "Maze" social distancing app.
-
-
-TOPIC: HISTORY (2019 - SOCIAL INITIATIVES)
-2019: Partnered with Museo ng Kaalamáng Katutubò (MusKKat) for indigenous artifact awareness. Partnered with Unilab to support community objectives. Partnered with the Climate Change Commission (CCC) for climate awareness exhibitions like CTRL+S Now.
-
-
-TOPIC: HISTORY (2020 - 2023)
-2020: Established partnership with Temasek Polytechnic in Singapore.
 2022: Launched iACADEMY x ASUS Edukasyon partnership.
 2023: Launched iNDIEGENIUS Project Lab supported by Netflix to support Filipino regional filmmakers.
+2023-2024: Huawei Computing Track Champions
+2024-2025: Huawei Cloud Computing Champions 
 
-
-TOPIC: INDUSTRY PARTNERSHIPS (2023)
-In 2023, iACADEMY inked partnerships with diverse corporations including:
-- Marketing: McCann, Mullenlowe Treyna
-- Finance: Macquarie, Metrobank, Sunlife
-- Gaming: Ubisoft
-- Technology: ASUS, Huawei
+TOPIC: INDUSTRY PARTNERSHIPS 
+- Finance: Macquarie, Metrobank, Sunlife, RE/Max
+- Gaming: Ubisoft, UNITY
+- Technology: ASUS, Huawei, Foundever, MSI
 - Animation: Toon City
-- Pharmaceutical: Unilab
+- Pharmaceutical/Health: Unilab, Healthway, ACHealth, IVY Clinic
 
 
 TOPIC: SENIOR HIGH SCHOOL (SHS) STRANDS
@@ -90,16 +67,11 @@ Degrees Offered:
 - BA Music Production and Sound Design
 
 
-TOPIC: STUDENT LIFE AND CALENDAR
-The Senior High School program follows a semester calendar (August to June).
-The College program follows a trimester calendar (Starts in July).
-SOAR (Student Orientation and Registration) is held a week before classes start to introduce students to the campus.
-
-
 TOPIC: SCHOOL TRADITIONS AND EVENTS
 - SOAR: Student Orientation and Registration for new students.
-- Creative Camp: Free art workshops.
-- Battle League: Gaming competition to promote the Game Development industry.
+- School of Computing Week
+- School of Design and Arts Week
+- School of Business and Liberal Arts Week 
 
 
 TOPIC: SENIOR HIGH SCHOOL STUDENT ORGANIZATIONS (SHS)
@@ -131,12 +103,10 @@ TOPIC: COLLEGE / UNDERGRADUATE STUDENT ORGANIZATIONS
 - iACADEMY Student Council (CSO)
 - iACADEMY Junior Marketing Association (iJMA)
 - iACT
-- International Games Developers Association of iACADEMY (IGDA)
-- Magnates (College Chapter)
 - OCTAVE (College Chapter)
 - Pikzel Graphic Design
 - Prima (College Chapter)
 - iACADEMY Compile (formerly SEAL)
-- Student Athletes Society (College Chapter)
-- The Game Changers Press (Official Student Publication)
-- FORGE (Game Development)
+- iSO
+- The Archives (Official Student Publication)
+- FORGE (Game Development) 

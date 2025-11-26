@@ -1,11 +1,6 @@
 import sys
 import time
 import datetime
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QPushButton, QLabel, QLineEdit, 
-                             QScrollArea, QFrame, QSizePolicy, QGraphicsDropShadowEffect)
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QColor, QIcon, QFont
 
 from faster_whisper import WhisperModel
 from rag import Rag
@@ -13,6 +8,12 @@ from llm import LLM
 from voice_input import VoiceInput
 from voice_output import VoiceOutput
 from wake_word import WakeWordDetector
+import torch
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QPushButton, QLabel, QLineEdit, 
+                             QScrollArea, QFrame, QSizePolicy, QGraphicsDropShadowEffect)
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
+from PyQt6.QtGui import QPixmap, QColor, QIcon, QFont
 
 # (Background is now handled by the Stylesheet gradient)
 WHITE_PANEL = "#ffffff"     # The Chat Card
@@ -145,7 +146,7 @@ class AIWorker(QThread):
 
         current_time = datetime.datetime.now().strftime("%A, %I:%M %p")
         
-        prompt = f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus).
+        prompt = f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus), You are located at the Ground Floor - Lobby.
 Current Time: {current_time}
 
 ### INSTRUCTIONS:

@@ -1,30 +1,32 @@
 LOCATION: GROUND FLOOR
-The Ground Floor is the main entry point. It contains the Main Lobby, Elevator Lobby, and the Game Hive.
+The Ground Floor is the main entry point. It contains the Main Lobby, Tech Hive, and the Game Hive.
 The Ground Floor also houses the Clinic, Tech Hive, and Interview Rooms.
 Administrative offices located on the Ground Floor include the AdComm Office (Admissions), Examination Room, Security Office, Registrar's Office, and Finance Office.
-Restrooms are available on the Ground Floor.
 
 LOCATION: MEZZANINE
-The Mezzanine level features the Hallway, Elevator Lobby, and Mezzanine Lobby.
-Key administrative offices on the Mezzanine include the MIS (Management Information Systems) Office, Executive Offices, and the ELPD Office.
+The Mezzanine level features the Mezzanine Lobby.
+Key administrative offices on the Mezzanine include the IT Office, Executive Offices, and the ELPD Office.
 The OSAS (Office of Student Affairs and Services) and HR (Human Resources) are also located on the Mezzanine.
-Meeting Rooms and Restrooms are available here.
+Meeting Rooms are available here.
 
 LOCATION: 2ND FLOOR
-The 2nd Floor contains the Purchasing Office, a Parking Area, and the Registrar Storage.
+The 2nd Floor contains a Parking Area, and the Registrar Storage.
 
 LOCATION: 3RD FLOOR
-The 3rd Floor is primarily used for the Parking Area and the Admin and Facilities Office.
+The 3rd Floor is primarily used for the Parking Area for Employees and the Admin and Facilities Office.
 
 LOCATION: 4TH FLOOR
 The 4th Floor includes a Parking Area. It also houses storage units: SHS (Senior High School) Storage, Academics Storage, and the OSAS Storage.
 
-LOCATION: 5TH FLOOR
-The 5th Floor is the student lounge area. It contains the Cafeteria, Employees' Lounge, and Restrooms.
+LOCATION: 5TH FLOOR along with Restroom
+The 5th Floor is the Cafeteria, Employees' Lounge.
+
+LOCATION: Cafeteria
+The Cafeteria includes conscessionaires such as Potato Corner, Baraffe, Nadine's, Jimini Pizza, Seoul Eats, Cool Brians, and Capital Brew.
 
 LOCATION: 6TH FLOOR
-The 6th Floor contains classrooms RM 601 through RM 617.
-The SHS Library Extension (Senior High School Library) is also located on the 6th Floor, along with Restrooms.
+The 6th Floor contains classrooms RM 601 to RM 617.
+The SHS Library Extension (Senior High School Library) is also located on the 6th Floor.
 
 LOCATION: 7TH FLOOR ROOMS
 The 7th Floor houses general academic rooms: RM 701, RM 702, RM 703, RM 707, RM 708, RM 709, and RM 710.
@@ -32,43 +34,44 @@ Specialized academic rooms on the 7th Floor include RM 704 (Testing and Assessme
 
 LOCATION: 7TH FLOOR FACILITIES
 The 7th Floor is home to several arts facilities: the Dance Room, Fashion Room 1, Fashion Room 2, Sewing Room, Sound Room, and Green Room.
-Restrooms are available on this floor.
 
 LOCATION: 8TH FLOOR ROOMS
 The 8th Floor contains classrooms RM 801, RM 802.
 It houses Computer Labs: RM 803 (also known as CL 1) and RM 804 (also known as CL 2).
-It also houses Multimedia Arts labs: MMA 1, MMA 2, MMA 3, and the Lightbox Lab.
+It also houses Multimedia Arts labs: MMA 1, MMA 2, MMA 3, and the Lightbox Lab. 
+Prayer room is also situated at the 8th floor.
 
-LOCATION: 8TH FLOOR FACILITIES
-The 8th Floor contains Rooms 801 - 804. RM 803 is Computer Laboratory 1 (CL 1). RM 804 is Computer Laboratory 2 (CL 2). Other rooms are for MMA 1, MMA 2, Light Box Lab, MMA 3, Multi Faith Room and Meditation Room.
+LOCATION: 8TH FLOOR OFFICES
+The 8th Floor houses the UG and SHS Faculty. 
 
-LOCATION: 8TH FLOOR OFFICES (DEANS & ADMIN)
-The 8th Floor houses the Deans' offices: Office of the Dean - School of Computing (SOC), Office of the Dean - School of Business (SBLA), and Office of the Dean - School of Design (SoDA).
+LOCATION: Faculty
+Deans' offices: Office of the Dean - School of Computing (SOC), Office of the Dean - School of Business (SBLA), and Office of the Dean - School of Design (SoDA).
 This floor also contains the Office of the Senior Highschool Assistant Principal and Principal.
 Other offices here include: Research & Development, Office of Quality Assurance, National Service Training Program (NSTP) Office, Office of the VP for Academics, Counseling Simulation Room, and the Faculty Office.
 
 LOCATION: 9TH FLOOR
 The 9th Floor contains classrooms RM 901 through RM 917.
-The UG Library Extension (Undergraduate Library) and Restrooms are located here.
+The UG Library Extension (Undergraduate Library).
 
 LOCATION: 10TH FLOOR LABS AND ROOMS
 The 10th Floor is dedicated to specialized laboratories.
-Multimedia Arts labs include: RM 1002 (MMA 1), RM 1003 (MMA 2), RM 1004 (MMA 4), RM 1009 (MMA 5).
+Multimedia Arts labs include: RM 1003 (MMA 2), RM 1004 (MMA 4), RM 1009 (MMA 5).
 Computer Labs include: RM 1005 (CL 1) and RM 1006 (CL 2).
 Specialized tech labs include: RM 1001 (MPSD Lab), RM 1007 (Lightbox Lab), and RM 1008 (iMAC Lab).
 Arts and Science labs on the 10th Floor include: RM 1011 (Wet Drawing Room), RM 1012 and RM 1013 (Dry Drawing Rooms), RM 1014 (Physics and Electronics Lab), and RM 1015 (Bio Chemistry Lab).
-Restrooms are available on the 10th floor.
+Unity Lab: RM 1002
 
 LOCATION: 12TH FLOOR
-The 12th Floor contains the Auditorium and the Multi-Purpose Hall (MPH).
-Backstage facilities include the Left Dressing Room, Right Dressing Room, Tech Booth, and Gallery. Restrooms are available.
+The 12th Floor contains the Auditorium, Nexus Gallery, and the Multi-Purpose Hall (MPH).
+Backstage facilities in the Auditorium include the Left Dressing Room and Right Dressing Room. 
 
 LOCATION: LP (Lower Penthouse)
 The Lower Penthouse (LP) contains the Gym / Basketball Court.
-PE Room 1 and PE Room 2 are also located on the Lower Penthouse, along with Restrooms.
+Open Area
+PE Room 1 and PE Room 2 are also located on the Lower Penthouse.
 
 LOCATION: UP (Upper Penthouse)
-The Upper Penthouse (UP) contains the Running Track and the Main Library. Restrooms are available.
+The Upper Penthouse (UP) contains the Running Track and the Main Library. 
 
 GENERAL FACILITIES
 Rest Rooms and Comfort Rooms (CR) are available on all floors except the 2nd, 3rd, and 4th floors.
