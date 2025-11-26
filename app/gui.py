@@ -36,22 +36,23 @@ STYLESHEET = f"""
         font-family: 'Segoe UI', sans-serif;
     }}
     
-    /* --- RIGHT SIDE: THE WHITE CHAT CARD --- */
+    /* RIGHT SIDE: THE WHITE CHAT CARD */
     #ChatCard {{
         background-color: {WHITE_PANEL};
         border-radius: 20px;
     }}
     
-    /* --- MODE BUTTONS (Let's Talk / Chat) --- */
+    /* MODE BUTTONS (Let's Talk / Chat) */
     QPushButton.ModeBtn {{
         background-color: {BUTTON_BG};
         color: white;
         border-radius: 15px;
-        padding: 15px 20px;
+        padding: 5px 20px;
         font-weight: bold;
         font-size: 15px;
         text-align: left;
     }}
+    
     QPushButton.ModeBtn:hover {{
         background-color: #333333;
     }}
@@ -70,7 +71,7 @@ STYLESHEET = f"""
         padding: 5px;
     }}
 
-    /* --- INPUT PILL (The dark bar at the bottom) --- */
+    /* INPUT PILL (The dark bar at the bottom) */
     QFrame#InputPill {{
         background-color: {INPUT_BG};
         border-radius: 25px; /* Rounded Pill Shape */
@@ -246,20 +247,29 @@ class ChatWindow(QMainWindow):
         lbl_hey.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(lbl_hey)
 
-        lbl_name = QLabel("BEARNARD")
-        lbl_name.setStyleSheet("""
-            color: #3b82f6; 
-            font-size: 54px; 
-            font-weight: 900; 
-            font-family: 'Impact', sans-serif;
-            qproperty-alignment: AlignCenter;
-        """)
-        # Add Drop Shadow to text to make it pop
+        # MODIFIED: REPLACED TEXT WITH ASSET IMAGE 
+        lbl_name = QLabel()
+        lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Load the Bearnard Text Asset
+        # Ensure 'assets/bearnard_text.png' exists in your project root
+        logo_pixmap = QPixmap("assets/bearnard_text.png")
+        
+        if not logo_pixmap.isNull():
+            # Scale it to fit nicely (adjust height '80' as needed)
+            lbl_name.setPixmap(logo_pixmap.scaledToHeight(50, Qt.TransformationMode.SmoothTransformation))
+        else:
+            # Fallback if image is missing
+            lbl_name.setText("BEARNARD")
+            lbl_name.setStyleSheet("color: #3b82f6; font-size: 54px; font-weight: 900; font-family: 'Impact', sans-serif;")
+        
+        # Keep the shadow effect if you want it on the image too (optional)
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(5)
         shadow.setColor(QColor(0, 0, 0, 150))
         shadow.setOffset(2, 2)
         lbl_name.setGraphicsEffect(shadow)
+        
         left_layout.addWidget(lbl_name)
 
         # Bear Image
@@ -269,7 +279,6 @@ class ChatWindow(QMainWindow):
         main_layout.addWidget(left_col, 35) # 35% Width
 
         # RIGHT COLUMN (Interaction)
-
         right_col = QWidget()
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(10, 10, 10, 10)
@@ -284,22 +293,30 @@ class ChatWindow(QMainWindow):
         btn_row = QHBoxLayout()
         
         # Button 1: Voice
-        self.btn_voice = QPushButton(" 🎙️   Let's Talk!")
+        self.btn_voice = QPushButton("   Let's Talk!")
         self.btn_voice.setProperty("class", "ModeBtn")
         self.btn_voice.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        self.btn_voice.setIcon(QIcon("assets/microphone.png"))
+        self.btn_voice.setIconSize(QSize(36, 36)) 
+        
         self.btn_voice.clicked.connect(lambda: self.controller.set_mode("voice"))
         
         # Button 2: Chat
-        self.btn_chat = QPushButton(" 💬   Chat with me!")
+        self.btn_chat = QPushButton("   Chat with me!")
         self.btn_chat.setProperty("class", "ModeBtn")
         self.btn_chat.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        self.btn_chat.setIcon(QIcon("assets/chat.png"))
+        self.btn_chat.setIconSize(QSize(36, 36))
+        
         self.btn_chat.clicked.connect(lambda: self.controller.set_mode("chat"))
 
         btn_row.addWidget(self.btn_voice)
         btn_row.addWidget(self.btn_chat)
         right_layout.addLayout(btn_row)
 
-        # --- WHITE CHAT CARD ---
+        # WHITE CHAT CARD
         card = QFrame()
         card.setObjectName("ChatCard")
         card_layout = QVBoxLayout(card)
@@ -315,7 +332,7 @@ class ChatWindow(QMainWindow):
         self.scroll.setWidget(self.chat_content)
         card_layout.addWidget(self.scroll)
 
-        # --- INPUT PILL (Dark Blue bar inside White Card) ---
+        # (Dark Blue bar inside White Card) 
         input_pill = QFrame()
         input_pill.setObjectName("InputPill")
         input_pill.setFixedHeight(50)
@@ -337,7 +354,7 @@ class ChatWindow(QMainWindow):
         card_layout.addWidget(input_pill)
         
         right_layout.addWidget(card)
-        main_layout.addWidget(right_col, 65) # 65% Width
+        main_layout.addWidget(right_col, 65) 
 
     def add_message(self, sender, text):
         msg_lbl = QLabel(f"<b>{sender}:</b> {text}")
