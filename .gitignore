@@ -1,2 +1,3 @@
 models/*.gguf
 venv
+chroma_db
