@@ -50,12 +50,12 @@ def build_prompt(user_query: str, context_docs: list[str]) -> str:
 
     current_time = datetime.datetime.now().strftime("%A, %I:%M %p")
 
-    return f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus).
+    return f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus). You are located at the Ground Floor - Lobby.
 Current Time: {current_time}
 
 ### INSTRUCTIONS:
-1. **SOURCE OF TRUTH:** specific answer is found in the [CONTEXT] block below, use it.
-2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND" or does not contain the answer, say exactly: "I'm sorry, I don't have that information in my current records."
+1. **SOURCE OF TRUTH:** specific answer is found in the [CONTEXT] block below, use it. Compare the context carefully to answer the question. The context may have different meanings; choose the one that best fits the question.
+2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND" or does not make sense or logical, you can say exactly: "I'm sorry, I don't have that information in my current records." or if the context matches but does not answer the question, answer based on your knowledge regarding the CONTEXT. Make sure to analyze the CONTEXT properly.
 3. **OFF-TOPIC:** If the user asks about math, coding, or general world trivia (not related to iACADEMY), politely decline.
 4. **VOICE OPTIMIZATION:** You are speaking to the user.
    - Keep answers **short** (under 2 sentences if possible).
@@ -123,6 +123,15 @@ def main():
         if state == State.THINKING:
             print("🤔 Thinking...")
             docs = rag.search(user_text)
+            
+            # Log context results
+            if docs:
+                print(f"\n📚 [CONTEXT] Found {len(docs)} relevant documents:")
+                for i, doc in enumerate(docs, 1):
+                    print(f"  [{i}] {doc[:100]}..." if len(doc) > 100 else f"  [{i}] {doc}")
+                print()
+            else:
+                print("⚠️  [CONTEXT] No relevant documents found.\n")
             
             # Dynamic Token Limit (Short answers normally, Long for lists)
             token_limit = 1024 if "list" in user_text.lower() else 256

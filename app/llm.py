@@ -22,7 +22,7 @@ class LLM:
                 model_path="models/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
                 n_ctx=ctx,
                 n_threads=8,
-                n_gpu_layers=0 
+                n_gpu_layers=0 # Palitan mo to 1
             )
         else:
             print("Linux/Other detected")
@@ -37,8 +37,10 @@ class LLM:
     def ask(self, prompt: str, max_tokens: int = 256) -> str: 
         response = self.model(
             prompt,
-            max_tokens=max_tokens,  # <--- Use the variable here
-            temperature=0.2,
-            stop=["[/INST]", "User:", "###"]
+            max_tokens=max_tokens,
+            temperature=0.3,  # Slightly higher for natural responses
+            top_p=0.95,
+            repeat_penalty=1.1,
+            stop=["[/INST]", "[INST]", "User:", "QUESTION:", "\n\n\n"]  # Better stop tokens
         )
         return response["choices"][0]["text"].strip()

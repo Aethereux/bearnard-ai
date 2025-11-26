@@ -2,8 +2,9 @@ LIBRARY SCHEDULE:
 8:00am - 4:00pm, Tuesday - Saturday
 
 REGISTRAR SCHEDULE:
+Closed on Monday and Sunday
 Closed on Mondays and Sundays
-8:00am - 5:00pm, Tuesday - Friday, and 8:00am - 3:00pm, Saturday
+8:00am - 5:00pm, Tuesday - Friday, and 8:00am - 3:00pm, Saturday, and 8:00am - 3:00pm, Saturday
 12:00am - 1:00pm, Lunch Break
 
 OSAS SCHEDULE:

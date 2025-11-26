@@ -13,7 +13,7 @@ The OSAS (Office of Student Affairs and Services) and HR (Human Resources) are a
 Meeting Rooms are available here.
 
 LOCATION: 2ND FLOOR
-The 2nd Floor contains a Parking Area, and the Registrar Storage.
+The 2nd Floor contains a Parking Area
 
 LOCATION: 3RD FLOOR
 The 3rd Floor is primarily used for the Parking Area for Employees and the Admin and Facilities Office.
@@ -21,15 +21,15 @@ The 3rd Floor is primarily used for the Parking Area for Employees and the Admin
 LOCATION: 4TH FLOOR
 The 4th Floor includes a Parking Area. It also houses storage units: SHS (Senior High School) Storage, Academics Storage, and the OSAS Storage.
 
-LOCATION: 5TH FLOOR along with Restroom
+LOCATION: 5TH FLOOR
 The 5th Floor is the Cafeteria, Employees' Lounge.
 
 LOCATION: Cafeteria
 The Cafeteria includes conscessionaires such as Potato Corner, Baraffe, Nadine's, Jimini Pizza, Seoul Eats, Cool Brians, and Capital Brew.
 
 LOCATION: 6TH FLOOR
-The 6th Floor contains classrooms RM 601 to RM 617.
-The SHS Library Extension (Senior High School Library) is also located on the 6th Floor.
+The 6th Floor contains classrooms RM 601 to RM 617 for academic classes and lectures.
+The SHS Library Extension (Senior High School Library) is also located on the 6th Floor for studying and research.
 
 LOCATION: 7TH FLOOR ROOMS
 The 7th Floor houses general academic rooms: RM 701, RM 702, RM 703, RM 707, RM 708, RM 709, and RM 710.

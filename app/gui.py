@@ -8,6 +8,7 @@ from llm import LLM
 from voice_input import VoiceInput
 from voice_output import VoiceOutput
 from wake_word import WakeWordDetector
+
 import torch
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QLineEdit, 
@@ -139,24 +140,36 @@ class AIWorker(QThread):
     def generate_response(self, user_text):
         self.state_changed.emit("THINKING")
         docs = self.rag.search(user_text)
+        
+        # Log context results
         if docs:
+            print(f"\n📚 [CONTEXT] Found {len(docs)} relevant documents:")
+            for i, doc in enumerate(docs, 1):
+                print(f"  [{i}] {doc[:100]}..." if len(doc) > 100 else f"  [{i}] {doc}")
+            print()
             formatted_context = "\n---\n".join(docs)
         else:
+            print("⚠️  [CONTEXT] No relevant documents found.\n")
             formatted_context = "NO_DATA_FOUND"
 
         current_time = datetime.datetime.now().strftime("%A, %I:%M %p")
         
-        prompt = f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus), You are located at the Ground Floor - Lobby.
+        prompt = f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus), You are located at the Ground Floor - Lobby. 
 Current Time: {current_time}
 
 ### INSTRUCTIONS:
-1. **SOURCE OF TRUTH:** specific answer is found in the [CONTEXT] block below, use it.
-2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND" or does not contain the answer, say exactly: "I'm sorry, I don't have that information in my current records."
+1. **SOURCE OF TRUTH:** Answer questions using ONLY the information in the [CONTEXT] block below. Check for slang words or abbrevations used in iACADEMY. (CR for Comfort Room, CL for Computer Lab, etc.). check for lower case of the abreveations as well. the CONTEXT is your only source of truth. you must base your answers SOLELY on that information.
+2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND", say: "I'm sorry, I don't have that information in my current records." if the [CONTEXT] doesn't make sense or logical, answer based on your knowledge regarding the CONTEXT. Make sure to analyze the CONTEXT properly and follows the appropriate questions. avoid making up answers. This doesn't apply on Special Rules.
 3. **OFF-TOPIC:** If the user asks about math, coding, or general world trivia (not related to iACADEMY), politely decline.
 4. **VOICE OPTIMIZATION:** You are speaking to the user.
    - Keep answers **short** (under 2 sentences if possible).
    - Do NOT use lists, bullet points, or markdown formatting.
    - If listing items, separate them with commas for natural speech.
+
+   SPECIAL RULES:
+- If asked about NEAREST location, answer based on your location at Ground Floor - Lobby.
+- If asked for actions (greet, say hello), respond with a short greeting only.
+- If asked for the time, respond with the current time only.
 
 ### [CONTEXT]
 {formatted_context}

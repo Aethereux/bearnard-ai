@@ -7,7 +7,7 @@ from typing import List
 
 CHROMA_PATH = "chroma_db"
 COLLECTION_NAME = "school"
-EMBED_MODEL = "all-MiniLM-L6-v2"
+EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2" #"all-MiniLM-L6-v2"
 DATA_FOLDER = "data"
 
 CHUNK_SIZE = 500   
@@ -127,13 +127,32 @@ class Rag:
                 except Exception as e:
                     print(f"   ❌ Error adding {fname} to DB: {e}")
 
-    def search(self, query: str, n_results: int = 3) -> List[str]:
+    def search(self, query: str, n_results: int = 5, distance_threshold: float = 1.4) -> List[str]:
+        print(f"🔍 [DEBUG] Searching for: '{query}'")
+        
         q_emb = self.emb.encode(query).tolist()
         results = self.col.query(query_embeddings=[q_emb], n_results=n_results)
+        
         docs = []
+        distances = []
+        
         try:
             docs = results["documents"][0]
-        except Exception:
-            if isinstance(results, list) and len(results) > 0:
-                docs = results[0].get("documents", [])
-        return docs
+            distances = results["distances"][0]
+            
+            print(f"📊 [DEBUG] Raw distances: {distances}")
+            
+            # Filter out results that are too far away (irrelevant)
+            filtered_docs = []
+            for i, (doc, dist) in enumerate(zip(docs, distances)):
+                if dist <= distance_threshold:
+                    filtered_docs.append(doc)
+                    print(f"  ✅ [{i+1}] Distance: {dist:.3f} - KEPT")
+                else:
+                    print(f"  ❌ [{i+1}] Distance: {dist:.3f} - FILTERED OUT")
+            
+            return filtered_docs[:10]  # Return max 3 most relevant
+            
+        except Exception as e:
+            print(f"❌ [DEBUG] Error in search: {e}")
+            return []
