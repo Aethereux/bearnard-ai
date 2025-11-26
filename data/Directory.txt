@@ -1,3 +1,6 @@
+GENERAL FACILITIES
+Rest Rooms and Comfort Rooms (CR) are available on all floors except the 2nd, 3rd, and 4th floors.
+
 LOCATION: GROUND FLOOR
 The Ground Floor is the main entry point. It contains the Main Lobby, Tech Hive, and the Game Hive.
 The Ground Floor also houses the Clinic, Tech Hive, and Interview Rooms.
@@ -72,6 +75,3 @@ PE Room 1 and PE Room 2 are also located on the Lower Penthouse.
 
 LOCATION: UP (Upper Penthouse)
 The Upper Penthouse (UP) contains the Running Track and the Main Library. 
-
-GENERAL FACILITIES
-Rest Rooms and Comfort Rooms (CR) are available on all floors except the 2nd, 3rd, and 4th floors.

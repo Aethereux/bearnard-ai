@@ -2,13 +2,10 @@
 
 **Welcome to Bearnard\!** This is a fully offline, privacy-first AI concierge designed for **iACADEMY (The Nexus)**.
 
-<<<<<<< HEAD
 ---
 ## For Systems w/o C++ Compiler
 Install the vs_Build tools through: https://visualstudio.microsoft.com/downloads/
-=======
 Unlike Siri or ChatGPT, Bearnard runs **100% on your laptop hardware**. He has no API keys, no monthly fees, and he doesn't send your voice to the cloud. He uses a **Two-Stage Wake Word Pipeline** to act as a strict librarian for school questions (using RAG) but switches to a chill "Game Changer" ambassador for general interactions.
->>>>>>> 6e8430c36d8f4f89948e2b0be0cf549760e4c122
 
 -----
 
@@ -69,6 +66,7 @@ pyttsx3
 sounddevice
 numpy
 pypdf
+PyQt6
 ```
 note: -- index-url no longer needs to be installed (atm)
 
@@ -98,6 +96,15 @@ brew install portaudio
 
 *(If you don't have Homebrew, install it from brew.sh first)*
 
+**3. For Windows PyTorch**
+Install PyTorch 2.8.0
+
+```bash
+# For CUDA 12.1 (Standard for 2.8.0)
+pip uninstall torch torchvision torchaudio
+
+pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu121
+```
 -----
 
 ## 3\. How to Run Bearnard
