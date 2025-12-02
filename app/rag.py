@@ -127,7 +127,7 @@ class Rag:
                 except Exception as e:
                     print(f"   ❌ Error adding {fname} to DB: {e}")
 
-    def search(self, query: str, n_results: int = 5, distance_threshold: float = 1.4) -> List[str]:
+    def search(self, query: str, n_results: int = 5, distance_threshold: float = 1.5) -> List[str]:
         print(f"🔍 [DEBUG] Searching for: '{query}'")
         
         q_emb = self.emb.encode(query).tolist()
