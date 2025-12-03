@@ -20,7 +20,6 @@ class WakeWordDetector:
         chunks_in_buffer = int(self.buffer_duration / self.chunk_duration)
         self.audio_buffer = collections.deque(maxlen=chunks_in_buffer)
         
-        # Default low, will be overwritten by GUI calibration
         self.energy_threshold = 0.002 
         
         self.stream = None
@@ -47,9 +46,9 @@ class WakeWordDetector:
             )
             self.stream.start()
             self.is_listening = True
-            print("👂 Wake Word Stream Started...")
+            print("Wake Word Stream Started...")
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"Error: {e}")
 
     def stop_stream(self):
         if self.stream:
@@ -78,7 +77,6 @@ class WakeWordDetector:
                 if volume_callback:
                     volume_callback(vol)
 
-                # VAD GATE: Syncs with GUI calibration
                 if vol < self.energy_threshold:
                     continue 
 
@@ -103,7 +101,7 @@ class WakeWordDetector:
                     transcript_callback(clean_text)
 
                 if any(variant in clean_text for variant in self.wake_variants):
-                    print(f"\n✨ WAKE WORD DETECTED: '{clean_text}'")
+                    print(f"\nWAKE WORD DETECTED: '{clean_text}'")
                     self.stop_stream()
                     return True
 

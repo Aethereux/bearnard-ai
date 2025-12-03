@@ -9,12 +9,10 @@ from voice_input import VoiceInput
 from voice_output import VoiceOutput
 from wake_word import WakeWordDetector
 
-# --- REMOVED WAKEWORD IMPORT ---
-
 def choose_mode():
     print("\nChoose Mode:")
-    print("1 = 🎤 Voice Mode (Continuous Conversation)")
-    print("2 = ⌨️  Text Mode (Type + Voice Output)")
+    print("1 = Voice Mode (Continuous Conversation)")
+    print("2 = Text Mode (Type + Voice Output)")
     while True:
         choice = input("Enter 1 or 2: ")
         if choice == "1":
@@ -22,10 +20,10 @@ def choose_mode():
         elif choice == "2":
             return "text"
         else:
-            print("❌ Invalid. Try again.")
+            print("Invalid. Try again.")
 
 def choose_microphone():
-    print("\n🎤 Available Input Devices:")
+    print("\nAvailable Input Devices:")
     devices = sd.query_devices()
     for i, dev in enumerate(devices):
         if dev['max_input_channels'] > 0:
@@ -35,11 +33,11 @@ def choose_microphone():
         try:
             choice = int(input("\nSelect mic device index: "))
             if 0 <= choice < len(devices) and devices[choice]['max_input_channels'] > 0:
-                print(f"✅ Selected: {devices[choice]['name']}")
+                print(f"Selected: {devices[choice]['name']}")
                 return choice
         except ValueError:
             pass
-        print("❌ Invalid. Try again.")
+        print("Invalid. Try again.")
 
 
 def build_prompt(user_query: str, context_docs: list[str]) -> str:
@@ -75,42 +73,39 @@ def main():
     mode = choose_mode()
     mic_index = choose_microphone() if mode == "voice" else None
 
-    print("\n⏳ Loading Whisper (Shared)...")
-    # 'base.en' is the sweet spot for accuracy/speed on local CPU
+    print("\nLoading Whisper (Shared)...")
     shared_whisper = WhisperModel("base.en", device="cpu", compute_type="int8")
-    print("✅ Whisper Loaded.")
+    print("Whisper Loaded.")
 
     llm = LLM()
     rag = Rag(build_if_empty=True)
     
-    # Initialize both Ear (Recorder) and Wake (Sentry)
     ear = VoiceInput(model=shared_whisper, device=mic_index)
     wake = WakeWordDetector(model=shared_whisper, device=mic_index)
     mouth = VoiceOutput()
     
     state = State.IDLE
 
-    print("\n🐻 Bearnard is ready. Say 'Hey Bearnard'.\n")
+    print("\nBearnard is ready. Say 'Hey Bearnard'.\n")
 
     while True:
-        # --- PHASE 1: WAKE WORD ---
+        # PHASE 1: WAKE WORD 
         if mode == "voice" and state == State.IDLE:
-            # Blocks here until wake word is heard
             if wake.listen_for_wake_word():
-                print("\a") # BEEP SOUND
+                print("\a") 
                 state = State.LISTENING
             continue
 
-        # --- PHASE 2: RECORD QUESTION ---
+        # PHASE 2: RECORD QUESTION 
         if mode == "voice" and state == State.LISTENING:
             audio = ear.record_until_silence()
             
-            print("📝 Transcribing...")
+            print("Transcribing...")
             user_text = ear.transcribe(audio)
-            print(f"🗣 You said: {user_text}")
+            print(f"You said: {user_text}")
             
             if not user_text.strip():
-                print("🤷 Heard nothing.")
+                print("Heard nothing.")
                 state = State.IDLE
                 continue
             state = State.THINKING
@@ -119,30 +114,29 @@ def main():
             user_text = input("You: ")
             state = State.THINKING
 
-        # --- PHASE 3: THINK & SPEAK ---
+        # PHASE 3: THINK & SPEAK 
         if state == State.THINKING:
-            print("🤔 Thinking...")
+            print("Thinking...")
             docs = rag.search(user_text)
             
             # Log context results
             if docs:
-                print(f"\n📚 [CONTEXT] Found {len(docs)} relevant documents:")
+                print(f"\n[CONTEXT] Found {len(docs)} relevant documents:")
                 for i, doc in enumerate(docs, 1):
                     print(f"  [{i}] {doc[:100]}..." if len(doc) > 100 else f"  [{i}] {doc}")
                 print()
             else:
-                print("⚠️  [CONTEXT] No relevant documents found.\n")
+                print("[CONTEXT] No relevant documents found.\n")
             
-            # Dynamic Token Limit (Short answers normally, Long for lists)
             token_limit = 1024 if "list" in user_text.lower() else 256
             
             prompt = build_prompt(user_text, docs)
             answer = llm.ask(prompt, max_tokens=token_limit)
             
-            print(f"\n🐻 Bearnard: {answer}\n")
+            print(f"\nBearnard: {answer}\n")
             mouth.speak(answer)
             
-            state = State.IDLE # Go back to sleep
+            state = State.IDLE 
 
         time.sleep(0.1)
 

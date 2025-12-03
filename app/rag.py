@@ -10,7 +10,6 @@ COLLECTION_NAME = "school"
 EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2" 
 DATA_FOLDER = "data"
 
-# INCREASED: Keeps headers ("LOCATION: GROUND") attached to their list items.
 CHUNK_SIZE = 1000   
 OVERLAP = 200         
 
@@ -42,7 +41,7 @@ def _id_for(text: str) -> str:
 
 class Rag:
     def __init__(self, build_if_empty: bool = False):
-        print("⏳ Loading RAG Model...")
+        print("Loading RAG Model...")
         self.emb = SentenceTransformer(EMBED_MODEL)
         self.client = chromadb.PersistentClient(path=CHROMA_PATH)
         
@@ -52,9 +51,9 @@ class Rag:
             self.col = self.client.create_collection(COLLECTION_NAME)
             
         if build_if_empty and self._is_collection_empty():
-            print("📂 Indexing data folder...")
+            print("Indexing data folder...")
             self.build_from_data_folder()
-            print("✅ RAG Indexing Complete.")
+            print("RAG Indexing Complete.")
 
     def _is_collection_empty(self) -> bool:
         try:
@@ -74,21 +73,21 @@ class Rag:
             
             if fname.lower().endswith(".pdf"):
                 try:
-                    print(f"   📄 Processing PDF: {fname}")
+                    print(f"Processing PDF: {fname}")
                     reader = pypdf.PdfReader(path)
                     for page in reader.pages:
                         extracted = page.extract_text()
                         if extracted:
                             text += extracted + "\n"
                 except Exception as e:
-                    print(f"   ❌ Error reading PDF {fname}: {e}")
+                    print(f"Error reading PDF {fname}: {e}")
                     continue
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as fh:
                         text = fh.read().strip()
                 except UnicodeDecodeError:
-                    print(f"   ⚠️  Skipping binary file: {fname}")
+                    print(f"Skipping binary file: {fname}")
                     continue
 
             if not text:
@@ -113,11 +112,10 @@ class Rag:
                     if docs:
                         self.col.add(documents=docs, embeddings=embeddings, ids=ids, metadatas=metas)
                 except Exception as e:
-                    print(f"   ❌ Error adding {fname} to DB: {e}")
+                    print(f"Error adding {fname} to DB: {e}")
 
-    # UPDATED: Default n_results increased to 15
     def search(self, query: str, n_results: int = 15, distance_threshold: float = 1.6) -> List[str]:
-        print(f"🔍 [DEBUG] Searching for: '{query}'")
+        print(f"[DEBUG] Searching for: '{query}'")
         
         q_emb = self.emb.encode(query).tolist()
         results = self.col.query(query_embeddings=[q_emb], n_results=n_results)
@@ -133,12 +131,11 @@ class Rag:
             for i, (doc, dist) in enumerate(zip(docs, distances)):
                 if dist <= distance_threshold:
                     filtered_docs.append(doc)
-                    # Uncomment for verbose debug
-                    # print(f"  ✅ [{i+1}] Distance: {dist:.3f} - KEPT") 
+
             
-            print(f"📊 [RAG] Retrieved {len(filtered_docs)} chunks from DB.")
+            print(f"[RAG] Retrieved {len(filtered_docs)} chunks from DB.")
             return filtered_docs
             
         except Exception as e:
-            print(f"❌ [DEBUG] Error in search: {e}")
+            print(f"[DEBUG] Error in search: {e}")
             return []
