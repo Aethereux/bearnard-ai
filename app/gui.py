@@ -390,7 +390,7 @@ class StaticBearAvatar(QLabel):
         self.setStyleSheet("background-color: transparent;")
         
         # NOTE: Assuming 'assets/bearnard_chat_static.png' exists.
-        img_static = QPixmap("assets/bearnard_chat_static.png")
+        img_static = QPixmap("assets/bearnard_chatWindow.png")
         
         if not img_static.isNull():
             # Scale for high quality view, keeping aspect ratio
