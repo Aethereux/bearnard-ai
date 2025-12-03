@@ -625,7 +625,7 @@ class VoiceWindow(QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Bearnard - Voice Mode")
-        self.resize(500, 700)
+        self.resize(512, 1536)
         
         # Remove default QMainWindow background gradient via STYLESHEET
         self.setStyleSheet("QMainWindow { background-color: black; }") 
