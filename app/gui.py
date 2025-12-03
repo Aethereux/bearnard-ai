@@ -310,18 +310,17 @@ class AIWorker(QThread):
     def generate_response(self, user_text):
         self.state_changed.emit("THINKING")
         
-        # --- MODIFICATION 1: INCREASE SEARCH DEPTH ---
-        # Fetch 15 results to ensure we catch specific details like "Ground Floor"
-        # even if generic info like "Health Concerns" ranks higher.
+        # --- MODIFICATION 1: FORCE DEEPER SEARCH ---
+        # We pass n_results=15 to override the default 5 in rag.py.
+        # This ensures we find "Clinic = Ground Floor" even if it's ranked #10.
         docs = self.rag.search(user_text, n_results=15)
         
-        # Log context results
+        # Log context results (Your original logic)
         if docs:
             print(f"\n📚 [CONTEXT] Found {len(docs)} relevant documents:")
             for i, doc in enumerate(docs, 1):
-                # Truncate log output for cleaner terminal
-                preview = doc[:100].replace('\n', ' ')
-                print(f"  [{i}] {preview}...")
+                # Added replace('\n', ' ') just to keep your console clean
+                print(f"  [{i}] {doc[:100].replace('\n', ' ')}..." if len(doc) > 100 else f"  [{i}] {doc}")
             print()
             formatted_context = "\n---\n".join(docs)
         else:
@@ -359,30 +358,25 @@ Current Time: {current_time}
         # Dynamic token limit helps prevents cutting off lists if needed, otherwise 512 is good default
         token_limit = 1024 if "list" in user_text.lower() else 512
         
-        try:
-            answer = self.llm.ask(prompt, max_tokens=token_limit)
-            self.response_ready.emit(answer)
-            self.state_changed.emit("SPEAKING")
-            self.mouth.speak(answer)
-            
-            # --- MODIFICATION 2: PREVENT SELF-HEARING (ECHO CANCELLATION) ---
-            # Calculate wait time: ~0.3s per word + 1.2s safety buffer
-            # This pauses the thread so the 'run' loop doesn't restart listening immediately
-            word_count = len(answer.split())
-            wait_time = (word_count * 0.3) + 1.2
-            
-            # Optional: Emit a log message if you have the log_message signal
-            # self.log_message.emit(f"Cooling down for {wait_time:.1f}s...", "WAIT")
-            print(f"⏳ Cooling down for {wait_time:.1f}s to prevent echo...")
-            time.sleep(wait_time)
-            
-            # --- MODIFICATION 3: WIPE MEMORY ---
-            # Clear the wake word buffer so it doesn't process the echo it just heard
-            if hasattr(self.wake, 'audio_buffer'):
-                self.wake.audio_buffer.clear()
-
-        except Exception as e:
-            print(f"Error generating/speaking: {e}")
+        answer = self.llm.ask(prompt, max_tokens=token_limit)
+        self.response_ready.emit(answer)
+        self.state_changed.emit("SPEAKING")
+        self.mouth.speak(answer)
+        
+        # --- MODIFICATION 2: ECHO CANCELLATION ---
+        # Calculate how long the AI takes to speak (approx 0.3s/word) + 2.0s safety buffer.
+        # This pauses the thread so the mic stays OFF while the AI is talking.
+        word_count = len(answer.split())
+        wait_time = (word_count * 0.3) + 2.0
+        
+        # Optional: Print log so you know it's waiting
+        # print(f"⏳ Cooling down for {wait_time:.1f}s...")
+        time.sleep(wait_time)
+        
+        # --- MODIFICATION 3: WIPE MEMORY ---
+        # Clear the wake word buffer immediately so it doesn't process the echo it just heard.
+        if hasattr(self.wake, 'audio_buffer'):
+            self.wake.audio_buffer.clear()
 
         self.state_changed.emit("IDLE")
 
