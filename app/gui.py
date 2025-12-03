@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QLineEdit, 
                              QScrollArea, QFrame, QGraphicsDropShadowEffect,
                              QDialog, QComboBox, QDialogButtonBox, QProgressBar, QTextEdit,
-                             QStackedLayout, QSizePolicy)
+                             QStackedLayout, QSizePolicy) # New Import: QStackedLayout
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QPixmap, QColor, QIcon, QResizeEvent
 
@@ -108,7 +108,7 @@ STYLESHEET = f"""
     QComboBox {{ padding: 5px; border-radius: 5px; background-color: white; color: black; }}
 """
 
-# --- 1. MICROPHONE SELECTION DIALOG ---
+# --- 1. MICROPHONE SELECTION DIALOG (UNCHANGED) ---
 class DeviceSelectionDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -140,7 +140,7 @@ class DeviceSelectionDialog(QDialog):
             self.selected_index = self.devices[idx][0]
         self.accept()
 
-# --- 2. TRANSCRIPT LOG WINDOW ---
+# --- 2. TRANSCRIPT LOG WINDOW (UNCHANGED) ---
 class TranscriptWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -174,7 +174,7 @@ class TranscriptWindow(QMainWindow):
         sb.setValue(sb.maximum())
         self.last_log = text
 
-# --- 3. AI WORKER ---
+# --- 3. AI WORKER (UNCHANGED) ---
 class AIWorker(QThread):
     response_ready = pyqtSignal(str)
     state_changed = pyqtSignal(str)
@@ -205,7 +205,7 @@ class AIWorker(QThread):
     def run(self):
         try:
             self.state_changed.emit("LOADING")
-            print(f"⏳ Loading Models... (Mic Index: {self.mic_index})")
+            print(f"Loading Models... (Mic Index: {self.mic_index})")
             
             # --- ENGINE SELECTION LOGIC ---
             os_name = platform.system()
@@ -246,6 +246,7 @@ class AIWorker(QThread):
             self.ear.adjust_for_ambient_noise()
             
             # SYNC THRESHOLDS: Apply Ear's calculated threshold to Wake Word
+            # This prevents the wake word from listening to silence/static
             self.wake.energy_threshold = self.ear.silence_threshold
             self.log_message.emit(f"VAD Threshold Synced: {self.wake.energy_threshold:.4f}", "SYS")
 
@@ -310,13 +311,17 @@ class AIWorker(QThread):
     def generate_response(self, user_text):
         self.state_changed.emit("THINKING")
         
+        # --- MODIFICATION 1: FORCE DEEPER SEARCH ---
         # We pass n_results=15 to override the default 5 in rag.py.
+        # This ensures we find "Clinic = Ground Floor" even if it's ranked #10.
         docs = self.rag.search(user_text, n_results=15)
         
+        # Log context results (Your original logic)
         if docs:
             print(f"\n [CONTEXT] Found {len(docs)} relevant documents:")
             for i, doc in enumerate(docs, 1):
-                print(f"  [{i}] {doc[:100].replace('\n', ' ')}..." if len(doc) > 100 else f"  [{i}] {doc}")
+                # Added replace('\n', ' ') just to keep your console clean
+                print(f"  [{i}] {doc[:100].replace('\n', ' ')}..." if len(doc) > 100 else f"  [{i}] {doc}")
             print()
             formatted_context = "\n---\n".join(docs)
         else:
@@ -351,6 +356,7 @@ Current Time: {current_time}
 ### [BEARNARD'S ANSWER]
 [/INST]"""
 
+        # Dynamic token limit helps prevents cutting off lists if needed, otherwise 512 is good default
         token_limit = 1024 if "list" in user_text.lower() else 512
         
         answer = self.llm.ask(prompt, max_tokens=token_limit)
@@ -358,12 +364,17 @@ Current Time: {current_time}
         self.state_changed.emit("SPEAKING")
         self.mouth.speak(answer)
         
+        # --- MODIFICATION 2: ECHO CANCELLATION ---
         # Calculate how long the AI takes to speak (approx 0.3s/word) + 2.0s safety buffer.
+        # This pauses the thread so the mic stays OFF while the AI is talking.
         word_count = len(answer.split())
         wait_time = (word_count * 0.3) + 2.0
         
+        # Optional: Print log so you know it's waiting
+        # print(f" Cooling down for {wait_time:.1f}s...")
         time.sleep(wait_time)
         
+        # --- MODIFICATION 3: WIPE MEMORY ---
         # Clear the wake word buffer immediately so it doesn't process the echo it just heard.
         if hasattr(self.wake, 'audio_buffer'):
             self.wake.audio_buffer.clear()
@@ -373,16 +384,15 @@ Current Time: {current_time}
 
 # Bearnard for Chat Window
 class StaticBearAvatar(QLabel):
+    # Set a large, fixed size based on your successful scaling size (e.g., 600)
     BEARNARD_SIZE = 450
 
     def __init__(self): 
         super().__init__()
         
         self.setFixedSize(self.BEARNARD_SIZE, self.BEARNARD_SIZE)
-        
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("background-color: transparent;")
-        
         self.setSizePolicy(
             QSizePolicy.Policy.Fixed, 
             QSizePolicy.Policy.Fixed
@@ -392,15 +402,18 @@ class StaticBearAvatar(QLabel):
         
         self.setScaledContents(True)
         
+   
         self.setPixmap(self.img_static_original)
 
     def set_state(self, state):
+        # Static Bearnard does not animate
         pass
 
 # Bearnard for Voice Window
 class AnimatedBearAvatar(QLabel):
     def __init__(self):
         super().__init__()
+        
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("background-color: black;")
         
@@ -417,6 +430,8 @@ class AnimatedBearAvatar(QLabel):
         self.is_mouth_open = False
 
     def resize_images(self, size):
+        """Scales the pixmaps without stretching, based on the new size."""
+        
         if not self.img_closed_original.isNull():
             self.img_closed = self.img_closed_original.scaled(
                 size, 
@@ -430,10 +445,12 @@ class AnimatedBearAvatar(QLabel):
                 Qt.TransformationMode.SmoothTransformation
             )
         
+        # Re-set the current pixmap to apply the scaling
         current_img = self.img_open if self.is_mouth_open else self.img_closed
         self.setPixmap(current_img)
 
     def resizeEvent(self, event: QResizeEvent):
+        """Called when the widget is resized. Triggers image rescaling."""
         self.resize_images(event.size())
         super().resizeEvent(event)
         
@@ -443,100 +460,81 @@ class AnimatedBearAvatar(QLabel):
         
     def set_state(self, state):
         if state == "SPEAKING":
+            # Start the mouth-toggle animation
             if not self.talk_timer.isActive(): self.talk_timer.start(150)
         else:
+            # Stop the animation and revert to the closed mouth
             self.talk_timer.stop()
             self.setPixmap(self.img_closed)
 
-# --- 4. CHAT WINDOW (FIXED) ---
+# Chat Window
 class ChatWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Bearnard - Chat Mode")
         self.resize(1100, 650)
+        
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+        
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(30, 30, 30, 30)
         main_layout.setSpacing(20)
-        
-        # --- LEFT COLUMN: Logo, Avatar, Status ---
+
+        # --- LEFT COLUMN SETUP (TEXT, AVATAR, STATUS) ---
         left_col = QWidget()
         left_layout = QVBoxLayout(left_col)
-        # 1. Align contents to the top. The stretch(1) below will push everything down.
-        left_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
-        
-        # 1. Hey There! I'm label
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter) 
+
+        # 1. HEY THERE! I'M
         lbl_hey = QLabel("HEY THERE! I'M")
         lbl_hey.setStyleSheet("color: white; font-size: 24px; font-weight: bold; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;")
         lbl_hey.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(lbl_hey)
         
-        # 2. Bearnard Text Logo
-        lbl_name = QLabel()
-        lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # 2. BEARNARD Text Image (lbl_name)
+        self.lbl_name = QLabel() # Changed from lbl_name to self.lbl_name
+        self.lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_pixmap = QPixmap("assets/bearnard_text.png")
         if not logo_pixmap.isNull():
-            lbl_name.setPixmap(logo_pixmap.scaledToHeight(50, Qt.TransformationMode.SmoothTransformation))
+            self.lbl_name.setPixmap(logo_pixmap.scaledToHeight(50, Qt.TransformationMode.SmoothTransformation))
         else:
-            lbl_name.setText("BEARNARD")
-            lbl_name.setStyleSheet("color: #3b82f6; font-size: 54px; font-weight: 900; font-family: 'Impact', sans-serif;")
+            self.lbl_name.setText("BEARNARD")
+            self.lbl_name.setStyleSheet("color: #3b82f6; font-size: 54px; font-weight: 900; font-family: 'Impact', sans-serif;")
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(5)
         shadow.setColor(QColor(0, 0, 0, 150))
         shadow.setOffset(2, 2)
-        lbl_name.setGraphicsEffect(shadow)
-        left_layout.addWidget(lbl_name)
+        self.lbl_name.setGraphicsEffect(shadow)
+        left_layout.addWidget(self.lbl_name)
         
-        # Spacer: This stretch pushes the avatar block down, lowering the bear.
-        left_layout.addStretch(1) 
+        # 3. Increased stretch above the bear to push it down
+        left_layout.addStretch(5) 
         
-        # --- Bearnard Avatar and Layered Status (Layered) ---
-        bear_status_container = QWidget()
-        # Use QStackedLayout to ensure visual layering (Z-order)
-        stacked_layout = QStackedLayout(bear_status_container)
-        stacked_layout.setStackingMode(QStackedLayout.StackingMode.StackAll)
-        stacked_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Layer 1 (Bottom): Bearnard Avatar
+        # 4. Bear Avatar (StaticBearAvatar)
         self.bear = StaticBearAvatar() 
-        stacked_layout.addWidget(self.bear) 
+        # No stretch factor on the widget itself, rely on layout stretching
+        left_layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        # Layer 2 (Top): Status and Volume Bar Overlay
-        status_overlay = QWidget()
-        status_layout = QVBoxLayout(status_overlay)
-        # Align contents to the very bottom of this overlay layer
-        status_layout.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignCenter)
-        # Increase bottom margin to push the status up onto the bear's jacket area
-        status_layout.setContentsMargins(0, 0, 0, 100) 
-        
+        # 5. Decreased stretch below the bear to keep it down
+        left_layout.addStretch(0) 
+
+        # 6. Status Label and Volume Bar
         self.lbl_system_status = QLabel(" System Idle")
         self.lbl_system_status.setObjectName("StatusLabel")
         self.lbl_system_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_system_status.setStyleSheet("color: white; font-weight: bold; border-radius: 4px; background-color: rgba(0,0,0,0.5); padding: 5px;")
+        left_layout.addWidget(self.lbl_system_status)
         
         self.vol_bar = QProgressBar()
         self.vol_bar.setRange(0, 50)
         self.vol_bar.setFixedHeight(8)
         self.vol_bar.setTextVisible(False)
-        
-        status_layout.addWidget(self.lbl_system_status)
-        status_layout.addWidget(self.vol_bar)
-        
-        # CRITICAL: This is the LAST element added to the stacked layout, ensuring it is drawn ON TOP.
-        stacked_layout.addWidget(status_overlay) 
-        
-        # Add the combined stacked widget to the main left layout (stretch=50 makes it take up most of the space below the logo)
-        left_layout.addWidget(bear_status_container, stretch=50, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        # We removed the bottom stretch, making the bear block anchor to the bottom of the left column.
-        
-        # --- END LEFT COLUMN ---
-        
+        left_layout.addWidget(self.vol_bar)
+
         main_layout.addWidget(left_col, 35) 
         
-        # --- RIGHT COLUMN: Chat Interface ---
+        # --- RIGHT COLUMN SETUP (CHAT INTERFACE) ---
         right_col = QWidget()
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(10, 10, 10, 10)
@@ -547,18 +545,20 @@ class ChatWindow(QMainWindow):
         right_layout.addWidget(header)
         
         btn_row = QHBoxLayout()
-        self.btn_voice = QPushButton("   Let's Talk!")
+        self.btn_voice = QPushButton("   Let's Talk!")
         self.btn_voice.setProperty("class", "ModeBtn")
         self.btn_voice.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_voice.setIcon(QIcon("assets/microphone.png"))
         self.btn_voice.setIconSize(QSize(50, 50)) 
         self.btn_voice.clicked.connect(lambda: self.controller.set_mode("voice"))
-        self.btn_chat = QPushButton("   Chat with me!")
+        
+        self.btn_chat = QPushButton("   Chat with me!")
         self.btn_chat.setProperty("class", "ModeBtn")
         self.btn_chat.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_chat.setIcon(QIcon("assets/chat.png"))
         self.btn_chat.setIconSize(QSize(50, 50))
         self.btn_chat.clicked.connect(lambda: self.controller.set_mode("chat"))
+        
         btn_row.addWidget(self.btn_voice)
         btn_row.addWidget(self.btn_chat)
         right_layout.addLayout(btn_row)
@@ -582,13 +582,19 @@ class ChatWindow(QMainWindow):
         input_pill.setFixedHeight(50)
         pill_layout = QHBoxLayout(input_pill)
         pill_layout.setContentsMargins(15, 0, 5, 0)
+        
         self.txt_input = QLineEdit()
         self.txt_input.setPlaceholderText("Ask anything...")
         self.txt_input.returnPressed.connect(self.send_text)
-        self.btn_send = QPushButton("⬆")
+        
+        self.btn_send = QPushButton()
+        send_icon = QIcon("assets/arrow_button.png")
+        self.btn_send.setIcon(send_icon)
         self.btn_send.setFixedSize(35, 35)
-        self.btn_send.setStyleSheet("background-color: white; color: #020621; border-radius: 17px; font-weight: bold;")
+        self.btn_send.setIconSize(QSize(20, 20))
+        self.btn_send.setStyleSheet("background-color: white; color: #020621; border-radius: 17px;")
         self.btn_send.clicked.connect(self.send_text)
+        
         pill_layout.addWidget(self.txt_input)
         pill_layout.addWidget(self.btn_send)
         card_layout.addWidget(input_pill)
@@ -601,7 +607,7 @@ class ChatWindow(QMainWindow):
         msg_lbl.setWordWrap(True)
         self.msg_layout.addWidget(msg_lbl)
         self.scroll.verticalScrollBar().setValue(self.scroll.verticalScrollBar().maximum())
-        
+    
     def send_text(self):
         text = self.txt_input.text().strip()
         if not text: return
@@ -613,23 +619,23 @@ class ChatWindow(QMainWindow):
         self.bear.set_state(state)
         if state == "IDLE":
             self.lbl_system_status.setText(" Waiting for Wake Word...")
-            self.lbl_system_status.setStyleSheet("color: #00ff00; background-color: rgba(0,255,0,0.1); font-weight: bold; border-radius: 4px; padding: 5px;")
+            self.lbl_system_status.setStyleSheet("color: #00ff00; background-color: rgba(0,255,0,0.1); font-weight: bold; border-radius: 4px;")
         elif state == "LISTENING":
             self.lbl_system_status.setText(" Listening to You...")
-            self.lbl_system_status.setStyleSheet("color: #3b82f6; background-color: rgba(59,130,246,0.1); font-weight: bold; border-radius: 4px; padding: 5px;")
+            self.lbl_system_status.setStyleSheet("color: #3b82f6; background-color: rgba(59,130,246,0.1); font-weight: bold; border-radius: 4px;")
         elif state == "THINKING":
             self.lbl_system_status.setText(" Thinking...")
-            self.lbl_system_status.setStyleSheet("color: #eab308; background-color: rgba(234,179,8,0.1); font-weight: bold; border-radius: 4px; padding: 5px;")
+            self.lbl_system_status.setStyleSheet("color: #eab308; background-color: rgba(234,179,8,0.1); font-weight: bold; border-radius: 4px;")
         elif state == "SPEAKING":
             self.lbl_system_status.setText(" Speaking...")
-            self.lbl_system_status.setStyleSheet("color: #ec4899; background-color: rgba(236,72,153,0.1); font-weight: bold; border-radius: 4px; padding: 5px;")
+            self.lbl_system_status.setStyleSheet("color: #ec4899; background-color: rgba(236,72,153,0.1); font-weight: bold; border-radius: 4px;")
         elif state == "CALIBRATING":
             self.lbl_system_status.setText(" Calibrating Mic...")
             
     def update_volume(self, level):
         self.vol_bar.setValue(level)
 
-# Voice Window 
+# Voice Window
 class VoiceWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
@@ -637,22 +643,28 @@ class VoiceWindow(QMainWindow):
         self.setWindowTitle("Bearnard - Voice Mode")
         self.resize(512, 1536)
         
+        # Remove default QMainWindow background gradient via STYLESHEET
         self.setStyleSheet("QMainWindow { background-color: black; }") 
         
+        # 1. Create the Animated Bear which will serve as the background
         self.bear = AnimatedBearAvatar() 
         
+        # 2. Create an overlay widget for all other UI elements (status, buttons)
         overlay_widget = QWidget()
         overlay_layout = QVBoxLayout(overlay_widget)
         overlay_layout.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         overlay_widget.setStyleSheet("background-color: transparent;")
         
+        # Add Status Label
         self.lbl_status = QLabel("Initializing...")
         self.lbl_status.setObjectName("StatusLabel")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         overlay_layout.addWidget(self.lbl_status)
         
+        # Add Spacer to push status and mic button apart
         overlay_layout.addStretch()
         
+        # Add the 'Tap to Speak' button, only visible in voice mode (Re-added logic for button from earlier)
         self.mic_btn = QPushButton()
         mic_icon = QIcon("assets/microphone.png")
         self.mic_btn.setIcon(mic_icon)
@@ -668,12 +680,16 @@ class VoiceWindow(QMainWindow):
         self.lbl_mic_help.setAlignment(Qt.AlignmentFlag.AlignCenter)
         overlay_layout.addWidget(self.lbl_mic_help)
         
+        # 3. Use a QWidget with QStackedLayout to layer the bear and the overlay
         central_widget = QWidget()
         stacked_layout = QStackedLayout(central_widget)
-        stacked_layout.setStackingMode(QStackedLayout.StackingMode.StackAll)
+        stacked_layout.setStackingMode(QStackedLayout.StackingMode.StackAll) # Show all layers
         stacked_layout.setContentsMargins(0, 0, 0, 0)
         
+        # Layer 1: The animated bear (the background)
         stacked_layout.addWidget(self.bear) 
+        
+        # Layer 2: The status label and buttons (the foreground)
         stacked_layout.addWidget(overlay_widget) 
         
         self.setCentralWidget(central_widget)
@@ -685,6 +701,7 @@ class VoiceWindow(QMainWindow):
         self.bear.set_state(state)
         if state == "IDLE":
             self.lbl_status.setText(" Waiting for Wake Word...")
+            # Note: Changed background color for IDLE status for better contrast on black background
             self.lbl_status.setStyleSheet("color: #00ff00; background-color: rgba(0,255,0,0.1); border-radius: 10px; font-size: 16px; padding: 10px;")
         elif state == "LISTENING":
             self.lbl_status.setText("I'm Listening!")
@@ -696,22 +713,25 @@ class VoiceWindow(QMainWindow):
             self.lbl_status.setText("Speaking...")
             self.lbl_status.setStyleSheet("color: white; background-color: #ec4899; border-radius: 10px; font-size: 16px; padding: 10px;")
 
-# --- 6. MAIN CONTROLLER ---
+# --- 6. MAIN CONTROLLER (UNCHANGED) ---
 class MainController:
     def __init__(self):
         self.app = QApplication(sys.argv)
         self.app.setStyleSheet(STYLESHEET)
         
+        # 1. Start Worker First (So it initializes MLX/Model)
         mic_dialog = DeviceSelectionDialog()
         selected_mic_index = mic_dialog.selected_index if mic_dialog.exec() == QDialog.DialogCode.Accepted else None
-        print(f"🎤 MainController: Selected Mic Index = {selected_mic_index}")
+        print(f"MainController: Selected Mic Index = {selected_mic_index}")
         
         self.worker = AIWorker(mic_index=selected_mic_index)
         
+        # 2. Create Windows
         self.chat_window = ChatWindow(self)
         self.voice_window = VoiceWindow(self)
         self.transcript_window = TranscriptWindow()
         
+        # 3. Connect Signals (So logs appear immediately)
         self.worker.state_changed.connect(self.chat_window.update_ui_state)
         self.worker.state_changed.connect(self.voice_window.update_ui_state)
         self.worker.response_ready.connect(lambda t: self.chat_window.add_message("Bearnard", t))
@@ -719,12 +739,13 @@ class MainController:
         self.worker.transcribed_text.connect(lambda t: self.chat_window.add_message("You", t))
         self.worker.log_message.connect(self.transcript_window.log)
         
+        # 4. Show & Start
         self.chat_window.show()
         self.voice_window.show()
         self.transcript_window.show()
         self.set_mode("chat")
         
-        self.worker.start()
+        self.worker.start() # Start processing loop LAST
         
         sys.exit(self.app.exec())
 
