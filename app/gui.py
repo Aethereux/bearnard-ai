@@ -337,11 +337,11 @@ Current Time: {current_time}
 2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND", say: "I'm sorry, I don't have that information in my current records." or If the [CONTEXT] doesn't make sense or logical, answer based on your knowledge regarding the CONTEXT. Make sure to analyze the CONTEXT properly and follows the appropriate questions. avoid making up answers. This doesn't apply on Special Rules.
 3. **OFF-TOPIC:** If the user asks about math, coding, or general world trivia (not related to iACADEMY), politely decline.
 4. **VOICE OPTIMIZATION:** You are speaking to the user.
-   - Keep answers **short** (under 2 sentences if possible).
-   - Do NOT use lists, bullet points, or markdown formatting.
-   - If listing items, separate them with commas for natural speech.
+    - Keep answers **short** (under 2 sentences if possible).
+    - Do NOT use lists, bullet points, or markdown formatting.
+    - If listing items, separate them with commas for natural speech.
 
-   SPECIAL RULES:
+    SPECIAL RULES:
 - If asked about NEAREST location, answer based on your location at Ground Floor - Lobby.
 - If asked for actions (greet, say hello), respond with a short greeting only.
 - If asked for the time, respond with the current time only.
@@ -382,7 +382,8 @@ Current Time: {current_time}
 
 # --- 3. BEAR AVATAR ---
 class BearAvatar(QLabel):
-    def __init__(self, width=400, height=400):
+    # CHANGE 2: Increased default size from 400 to 450
+    def __init__(self, width=450, height=450):
         super().__init__()
         self.setFixedSize(width, height)
         self.setScaledContents(True)
@@ -390,8 +391,8 @@ class BearAvatar(QLabel):
         
         # --- MODIFICATION START ---
         # 1. Load the actual image files
-        self.img_closed = QPixmap("assets/bearnard_closed.png")
-        self.img_open = QPixmap("assets/bearnard_open.png")
+        self.img_closed = QPixmap("assets/bearnard_closedMouth.png")
+        self.img_open = QPixmap("assets/bearnard_openMouth.png")
         
         # 2. Check if they loaded and scale them
         if not self.img_closed.isNull():
@@ -400,8 +401,8 @@ class BearAvatar(QLabel):
                                                      Qt.TransformationMode.SmoothTransformation)
         if not self.img_open.isNull():
             self.img_open = self.img_open.scaled(width, height, 
-                                                  Qt.AspectRatioMode.KeepAspectRatio, 
-                                                  Qt.TransformationMode.SmoothTransformation)
+                                                 Qt.AspectRatioMode.KeepAspectRatio, 
+                                                 Qt.TransformationMode.SmoothTransformation)
         # --- MODIFICATION END ---
         
         # Set initial image to closed mouth
@@ -457,7 +458,8 @@ class ChatWindow(QMainWindow):
         shadow.setOffset(2, 2)
         lbl_name.setGraphicsEffect(shadow)
         left_layout.addWidget(lbl_name)
-        self.bear = BearAvatar(400, 400)
+        # Bear Avatar will use the new default size (450, 450)
+        self.bear = BearAvatar() 
         left_layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
         self.lbl_mode = QLabel("CURRENT MODE: ⌨️ CHAT")
         self.lbl_mode.setObjectName("ModeLabel")
@@ -575,6 +577,10 @@ class VoiceWindow(QMainWindow):
         self.controller = controller
         self.setWindowTitle("Bearnard - Voice Mode")
         self.resize(500, 700)
+        
+        # CHANGE 1: Set the background of the VoiceWindow to black
+        self.setStyleSheet("QMainWindow { background-color: black; }") 
+        
         central = QWidget()
         layout = QVBoxLayout(central)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -583,32 +589,20 @@ class VoiceWindow(QMainWindow):
         self.lbl_status.setObjectName("StatusLabel")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_status)
-        self.bear = BearAvatar(400, 400)
+        # Bear Avatar will use the new default size (450, 450)
+        self.bear = BearAvatar() 
         layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.btn_listen = QPushButton("🎤 TAP TO SPEAK")
-        self.btn_listen.setObjectName("MicBtn")
-        self.btn_listen.setFixedSize(200, 80)
-        self.btn_listen.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_listen.clicked.connect(self.manual_trigger)
-        layout.addWidget(self.btn_listen, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.lbl_hint = QLabel("Or say 'Hey Bearnard'")
-        self.lbl_hint.setStyleSheet("color: #aaaaaa; font-size: 14px;")
-        self.lbl_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_hint)
     def manual_trigger(self):
         self.controller.worker.trigger_wake()
     def update_ui_state(self, state):
         self.bear.set_state(state)
         if state == "IDLE":
             self.lbl_status.setText("👂 Waiting for Wake Word...")
-            self.lbl_status.setStyleSheet("color: #00ff00; background-color: rgba(0,0,0,0.5); border-radius: 10px; font-size: 16px; padding: 10px;")
-            self.btn_listen.setEnabled(True)
-            self.btn_listen.setText("🎤 TAP TO SPEAK")
+            # Note: Changed background color for IDLE status for better contrast on black background
+            self.lbl_status.setStyleSheet("color: #00ff00; background-color: rgba(0,255,0,0.1); border-radius: 10px; font-size: 16px; padding: 10px;")
         elif state == "LISTENING":
             self.lbl_status.setText("🎙️ I'm Listening!")
             self.lbl_status.setStyleSheet("color: white; background-color: #3b82f6; border-radius: 10px; font-size: 16px; padding: 10px;")
-            self.btn_listen.setEnabled(False)
-            self.btn_listen.setText("Listening...")
         elif state == "THINKING":
             self.lbl_status.setText("🧠 Thinking...")
             self.lbl_status.setStyleSheet("color: black; background-color: #eab308; border-radius: 10px; font-size: 16px; padding: 10px;")
