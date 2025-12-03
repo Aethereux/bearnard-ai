@@ -7,21 +7,15 @@ from typing import List
 
 CHROMA_PATH = "chroma_db"
 COLLECTION_NAME = "school"
-EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2" #"all-MiniLM-L6-v2"
+EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2" 
 DATA_FOLDER = "data"
 
-CHUNK_SIZE = 500   
-OVERLAP = 100         
+# INCREASED: Keeps headers ("LOCATION: GROUND") attached to their list items.
+CHUNK_SIZE = 1000   
+OVERLAP = 200         
 
 def _chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = OVERLAP) -> List[str]:
-    """
-    SMART CHUNKER: Splits by 'blocks' (double newlines) first.
-    This keeps headers (LOCATION:) attached to their contents.
-    """
-    # 1. Normalize line endings
     text = text.replace("\r\n", "\n")
-    
-    # 2. Split by empty lines (Double Newline = New Block)
     blocks = text.split("\n\n")
     
     chunks = []
@@ -30,11 +24,8 @@ def _chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = OVERLAP)
         if not block:
             continue
             
-        # A) If the block fits in one chunk, keep it whole
         if len(block) < chunk_size:
             chunks.append(block)
-        
-        # B) If block is huge, split it the old way
         else:
             start = 0
             while start < len(block):
@@ -81,7 +72,6 @@ class Rag:
             path = os.path.join(DATA_FOLDER, fname)
             text = ""
             
-            # PDF SUPPORT
             if fname.lower().endswith(".pdf"):
                 try:
                     print(f"   📄 Processing PDF: {fname}")
@@ -93,8 +83,6 @@ class Rag:
                 except Exception as e:
                     print(f"   ❌ Error reading PDF {fname}: {e}")
                     continue
-            
-            # TEXT SUPPORT
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as fh:
@@ -127,7 +115,8 @@ class Rag:
                 except Exception as e:
                     print(f"   ❌ Error adding {fname} to DB: {e}")
 
-    def search(self, query: str, n_results: int = 5, distance_threshold: float = 1.5) -> List[str]:
+    # UPDATED: Default n_results increased to 15
+    def search(self, query: str, n_results: int = 15, distance_threshold: float = 1.6) -> List[str]:
         print(f"🔍 [DEBUG] Searching for: '{query}'")
         
         q_emb = self.emb.encode(query).tolist()
@@ -140,18 +129,15 @@ class Rag:
             docs = results["documents"][0]
             distances = results["distances"][0]
             
-            print(f"📊 [DEBUG] Raw distances: {distances}")
-            
-            # Filter out results that are too far away (irrelevant)
             filtered_docs = []
             for i, (doc, dist) in enumerate(zip(docs, distances)):
                 if dist <= distance_threshold:
                     filtered_docs.append(doc)
-                    print(f"  ✅ [{i+1}] Distance: {dist:.3f} - KEPT")
-                else:
-                    print(f"  ❌ [{i+1}] Distance: {dist:.3f} - FILTERED OUT")
+                    # Uncomment for verbose debug
+                    # print(f"  ✅ [{i+1}] Distance: {dist:.3f} - KEPT") 
             
-            return filtered_docs[:10]  # Return max 3 most relevant
+            print(f"📊 [RAG] Retrieved {len(filtered_docs)} chunks from DB.")
+            return filtered_docs
             
         except Exception as e:
             print(f"❌ [DEBUG] Error in search: {e}")

@@ -4,8 +4,21 @@ import datetime
 import platform
 import torch
 import sounddevice as sd
+import traceback 
 
+# --- ENGINE IMPORTS ---
 from faster_whisper import WhisperModel
+
+# Graceful MLX Import
+HAS_MLX = False
+try:
+    if platform.system() == "Darwin":
+        from mlx_wrapper import MLXWhisperWrapper
+        import mlx_whisper 
+        HAS_MLX = True
+except (ImportError, ModuleNotFoundError):
+    pass
+
 from rag import Rag
 from llm import LLM
 from voice_input import VoiceInput
@@ -15,7 +28,7 @@ from wake_word import WakeWordDetector
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QLineEdit, 
                              QScrollArea, QFrame, QGraphicsDropShadowEffect,
-                             QDialog, QComboBox, QDialogButtonBox, QProgressBar)
+                             QDialog, QComboBox, QDialogButtonBox, QProgressBar, QTextEdit)
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QPixmap, QColor, QIcon
 
@@ -23,6 +36,7 @@ from PyQt6.QtGui import QPixmap, QColor, QIcon
 WHITE_PANEL = "#ffffff"     
 INPUT_BG = "#1b1b3a"        
 BUTTON_BG = "#1f1f1f"       
+ACTIVE_BTN_BG = "#3b82f6"   
 TEXT_COLOR = "#333333"      
 
 STYLESHEET = f"""
@@ -38,14 +52,13 @@ STYLESHEET = f"""
     
     #ChatCard {{ background-color: {WHITE_PANEL}; border-radius: 20px; }}
     
-    /* MODE BUTTONS */
     QPushButton.ModeBtn {{
         background-color: {BUTTON_BG}; color: white; border-radius: 15px;
         padding: 5px 20px; font-weight: bold; font-size: 15px; text-align: left;
+        border: 1px solid rgba(255,255,255,0.1);
     }}
     QPushButton.ModeBtn:hover {{ background-color: #333333; }}
 
-    /* BIG MIC BUTTON (VOICE MODE) */
     QPushButton#MicBtn {{
         background-color: rgba(255, 255, 255, 0.1);
         border: 2px solid rgba(255, 255, 255, 0.3);
@@ -60,7 +73,6 @@ STYLESHEET = f"""
         background-color: rgba(59, 130, 246, 0.5); 
     }}
 
-    /* STATUS LABELS */
     QLabel#StatusLabel {{
         color: #00ff00;
         font-weight: bold;
@@ -69,22 +81,28 @@ STYLESHEET = f"""
         padding: 6px 12px;
         border-radius: 6px;
     }}
+    
+    QLabel#ModeLabel {{
+        font-weight: 900;
+        font-size: 14px;
+        padding: 8px;
+        border-radius: 8px;
+        text-transform: uppercase;
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }}
 
-    /* CHAT MESSAGES */
     QScrollArea {{ border: none; background-color: transparent; }}
     QWidget#ChatContent {{ background-color: transparent; }}
     QLabel.ChatMessage {{ color: {TEXT_COLOR}; font-size: 14px; padding: 5px; }}
 
-    /* INPUT PILL */
     QFrame#InputPill {{ background-color: {INPUT_BG}; border-radius: 25px; }}
     QLineEdit {{ background-color: transparent; color: white; font-size: 14px; border: none; }}
     QLineEdit::placeholder {{ color: #aaaaaa; }}
 
-    /* VOLUME BAR */
     QProgressBar {{ border: 2px solid white; border-radius: 5px; text-align: center; background: #000b21; }}
     QProgressBar::chunk {{ background-color: #3b82f6; }}
     
-    /* DIALOGS */
     QDialog {{ background-color: #081378; color: white; }}
     QComboBox {{ padding: 5px; border-radius: 5px; background-color: white; color: black; }}
 """
@@ -121,11 +139,47 @@ class DeviceSelectionDialog(QDialog):
             self.selected_index = self.devices[idx][0]
         self.accept()
 
-# --- 2. AI WORKER (LOGIC CORE) ---
+# --- 2. TRANSCRIPT LOG WINDOW ---
+class TranscriptWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Live Transcript Log")
+        self.resize(500, 400)
+        self.setStyleSheet("""
+            QMainWindow { background-color: #0d1117; }
+            QTextEdit { 
+                background-color: #0d1117; 
+                color: #00ff00; 
+                font-family: 'Consolas', 'Courier New', monospace; 
+                font-size: 12px;
+                border: none;
+                padding: 10px;
+            }
+        """)
+        self.log_area = QTextEdit()
+        self.log_area.setReadOnly(True)
+        self.setCentralWidget(self.log_area)
+        self.last_log = "" 
+        self.log("--- SYSTEM INITIALIZED ---")
+
+    def log(self, text, prefix="INFO"):
+        if text == self.last_log and prefix == "HEARD":
+            return
+            
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        formatted = f"[{timestamp}] [{prefix}] {text}"
+        self.log_area.append(formatted)
+        sb = self.log_area.verticalScrollBar()
+        sb.setValue(sb.maximum())
+        self.last_log = text
+
+# --- 3. AI WORKER ---
 class AIWorker(QThread):
     response_ready = pyqtSignal(str)
     state_changed = pyqtSignal(str)
     mic_volume = pyqtSignal(int)
+    transcribed_text = pyqtSignal(str)
+    log_message = pyqtSignal(str, str)
     
     def __init__(self, mic_index=None):
         super().__init__()
@@ -133,101 +187,141 @@ class AIWorker(QThread):
         self.is_running = True
         self.input_queue = None
         self.mic_index = mic_index 
-        self.manual_trigger_active = False # Flag for Button Press
+        self.manual_trigger_active = False 
 
     def set_mode(self, mode):
         self.mode = mode
+        self.log_message.emit(f"Switched to {mode.upper()} mode.", "MODE")
 
     def trigger_wake(self):
-        """Called by GUI Button to bypass wake word"""
         if self.mode == "voice":
             self.manual_trigger_active = True
+            self.log_message.emit("Manual 'Tap to Speak' triggered.", "INPUT")
 
     def process_text(self, text):
         self.input_queue = text
 
     def run(self):
-        self.state_changed.emit("LOADING")
-        
-        # --- HARDWARE DETECTION ---
-        os_name = platform.system()
-        device = "cpu"
-        compute_type = "int8"
-        
-        if torch.cuda.is_available():
-            print(f"🚀 {os_name} with CUDA Detected! Using Float16.")
-            device = "cuda"
-            compute_type = "float16"
-        elif os_name == "Darwin":
-             print("🍎 macOS Detected. Using CPU (Int8).")
-        else:
-            print(f"💻 {os_name} CPU Detected. Using Int8.")
-
-        # LOAD MODELS
-        print(f"⏳ Loading Whisper ({device}/{compute_type})...")
-        shared_whisper = WhisperModel("distil-large-v3", device=device, compute_type=compute_type)
-
-        self.rag = Rag(build_if_empty=True)
-        self.llm = LLM()
-        self.ear = VoiceInput(model=shared_whisper, device=self.mic_index)
-        self.wake = WakeWordDetector(model=shared_whisper, device=self.mic_index)
-        self.mouth = VoiceOutput()
-        
-        self.state_changed.emit("CALIBRATING")
-        self.ear.adjust_for_ambient_noise()
-
-        self.state_changed.emit("IDLE")
-        print("✅ AI Ready.")
-
-        while self.is_running:
-            # 1. Handle Text Input
-            if self.input_queue:
-                text = self.input_queue
-                self.input_queue = None
-                self.generate_response(text)
-                continue
-
-            # 2. Handle Voice Input
-            if self.mode == "voice":
-                # A. Listen for Wake Word (Fast Loop)
-                wake_heard = self.wake.listen_for_wake_word(
-                    timeout=0.1, 
-                    callback=lambda vol: self.mic_volume.emit(int(vol * 500))
-                )
+        try:
+            self.state_changed.emit("LOADING")
+            print(f"⏳ Loading Models... (Mic Index: {self.mic_index})")
+            
+            # --- ENGINE SELECTION LOGIC ---
+            os_name = platform.system()
+            shared_whisper = None
+            
+            if os_name == "Darwin" and HAS_MLX:
+                msg = "🍎 Apple Silicon (M4) Detected. Using MLX Engine."
+                print(msg)
+                self.log_message.emit(msg, "SYS")
+                shared_whisper = MLXWhisperWrapper("mlx-community/whisper-large-v3-turbo")
                 
-                # B. Check for Button Press OR Wake Word
-                if wake_heard or self.manual_trigger_active:
-                    self.manual_trigger_active = False # Reset flag
-                    
-                    self.state_changed.emit("LISTENING")
-                    self.mic_volume.emit(50) # Visual Pop
-                    
-                    # C. Record User Question
-                    audio = self.ear.record_until_silence(
-                        callback=lambda vol: self.mic_volume.emit(int(vol * 500))
+            elif torch.cuda.is_available():
+                msg = "🚀 NVIDIA GPU Detected. Using Faster-Whisper (Float16)."
+                print(msg)
+                self.log_message.emit(msg, "SYS")
+                shared_whisper = WhisperModel("distil-large-v3", device="cuda", compute_type="float16")
+                
+            else:
+                msg = "💻 Standard CPU Detected. Using Faster-Whisper (Int8)."
+                print(msg)
+                self.log_message.emit(msg, "SYS")
+                shared_whisper = WhisperModel("distil-medium.en", device="cpu", compute_type="int8", cpu_threads=4)
+
+            self.rag = Rag(build_if_empty=True)
+            try:
+                self.llm = LLM()
+            except Exception as e:
+                self.log_message.emit(f"LLM Error: {e}", "ERROR")
+                self.llm = None 
+
+            self.ear = VoiceInput(model=shared_whisper, device=self.mic_index)
+            self.wake = WakeWordDetector(model=shared_whisper, device=self.mic_index)
+            self.mouth = VoiceOutput()
+            
+            # --- CRITICAL CALIBRATION ---
+            self.state_changed.emit("CALIBRATING")
+            self.log_message.emit("Calibrating Microphone...", "CALIB")
+            self.ear.adjust_for_ambient_noise()
+            
+            # SYNC THRESHOLDS: Apply Ear's calculated threshold to Wake Word
+            # This prevents the wake word from listening to silence/static
+            self.wake.energy_threshold = self.ear.silence_threshold
+            self.log_message.emit(f"VAD Threshold Synced: {self.wake.energy_threshold:.4f}", "SYS")
+
+            self.state_changed.emit("IDLE")
+            self.log_message.emit("AI Ready.", "READY")
+
+            while self.is_running:
+                if self.input_queue:
+                    text = self.input_queue
+                    self.input_queue = None
+                    self.log_message.emit(f"User typed: {text}", "CHAT")
+                    self.generate_response(text)
+                    continue
+
+                if self.mode == "voice":
+                    wake_heard = self.wake.listen_for_wake_word(
+                        timeout=0.1, 
+                        volume_callback=lambda vol: self.mic_volume.emit(int(vol * 500)),
+                        transcript_callback=lambda text: self.log_message.emit(f"'{text}'", "HEARD")
                     )
                     
-                    self.state_changed.emit("THINKING")
-                    self.mic_volume.emit(0)
-                    
-                    user_text = self.ear.transcribe(audio)
-                    if user_text.strip():
-                        self.generate_response(user_text)
-                    else:
-                        self.state_changed.emit("IDLE")
-            
-            else:
-                time.sleep(0.1)
+                    if wake_heard or self.manual_trigger_active:
+                        self.wake.stop_stream()
+                        
+                        if wake_heard:
+                            self.log_message.emit("Wake Word Detected!", "WAKE")
+                        
+                        self.manual_trigger_active = False 
+                        
+                        self.state_changed.emit("LISTENING")
+                        self.mic_volume.emit(50) 
+                        self.log_message.emit("Recording...", "REC")
+                        
+                        audio = self.ear.record_until_silence(
+                            callback=lambda vol: self.mic_volume.emit(int(vol * 500))
+                        )
+                        
+                        self.state_changed.emit("THINKING")
+                        self.mic_volume.emit(0) 
+                        self.log_message.emit("Transcribing...", "PROC")
+                        
+                        user_text = self.ear.transcribe(audio)
+                        
+                        if user_text.strip():
+                            self.log_message.emit(f"Heard: '{user_text}'", "VOICE")
+                            self.transcribed_text.emit(user_text)
+                            self.generate_response(user_text)
+                        else:
+                            self.log_message.emit("Heard nothing.", "INFO")
+                            self.state_changed.emit("IDLE")
+                
+                else:
+                    time.sleep(0.1)
+        
+        except Exception as e:
+            err_msg = f"CRASH: {str(e)}"
+            print(err_msg)
+            traceback.print_exc()
+            self.log_message.emit(err_msg, "CRITICAL")
+            self.state_changed.emit("IDLE")
 
     def generate_response(self, user_text):
         self.state_changed.emit("THINKING")
-        docs = self.rag.search(user_text)
+        
+        # --- MODIFICATION 1: INCREASE SEARCH DEPTH ---
+        # Fetch 15 results to ensure we catch specific details like "Ground Floor"
+        # even if generic info like "Health Concerns" ranks higher.
+        docs = self.rag.search(user_text, n_results=15)
         
         # Log context results
         if docs:
             print(f"\n📚 [CONTEXT] Found {len(docs)} relevant documents:")
             for i, doc in enumerate(docs, 1):
-                print(f"  [{i}] {doc[:100]}..." if len(doc) > 100 else f"  [{i}] {doc}")
+                # Truncate log output for cleaner terminal
+                preview = doc[:100].replace('\n', ' ')
+                print(f"  [{i}] {preview}...")
             print()
             formatted_context = "\n---\n".join(docs)
         else:
@@ -265,13 +359,34 @@ Current Time: {current_time}
         # Dynamic token limit helps prevents cutting off lists if needed, otherwise 512 is good default
         token_limit = 1024 if "list" in user_text.lower() else 512
         
-        answer = self.llm.ask(prompt, max_tokens=token_limit)
-        self.response_ready.emit(answer)
-        self.state_changed.emit("SPEAKING")
-        self.mouth.speak(answer)
+        try:
+            answer = self.llm.ask(prompt, max_tokens=token_limit)
+            self.response_ready.emit(answer)
+            self.state_changed.emit("SPEAKING")
+            self.mouth.speak(answer)
+            
+            # --- MODIFICATION 2: PREVENT SELF-HEARING (ECHO CANCELLATION) ---
+            # Calculate wait time: ~0.3s per word + 1.2s safety buffer
+            # This pauses the thread so the 'run' loop doesn't restart listening immediately
+            word_count = len(answer.split())
+            wait_time = (word_count * 0.3) + 1.2
+            
+            # Optional: Emit a log message if you have the log_message signal
+            # self.log_message.emit(f"Cooling down for {wait_time:.1f}s...", "WAIT")
+            print(f"⏳ Cooling down for {wait_time:.1f}s to prevent echo...")
+            time.sleep(wait_time)
+            
+            # --- MODIFICATION 3: WIPE MEMORY ---
+            # Clear the wake word buffer so it doesn't process the echo it just heard
+            if hasattr(self.wake, 'audio_buffer'):
+                self.wake.audio_buffer.clear()
+
+        except Exception as e:
+            print(f"Error generating/speaking: {e}")
+
         self.state_changed.emit("IDLE")
 
-# --- 3. BEAR AVATAR WIDGET ---
+# --- 3. BEAR AVATAR ---
 class BearAvatar(QLabel):
     def __init__(self, width=400, height=400):
         super().__init__()
@@ -296,30 +411,25 @@ class BearAvatar(QLabel):
             self.talk_timer.stop()
             self.setPixmap(self.img_closed)
 
-# --- 4. CHAT WINDOW (Dashboard) ---
+# --- 4. CHAT WINDOW ---
 class ChatWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Bearnard - Chat Mode")
         self.resize(1100, 650)
-        
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(30, 30, 30, 30)
         main_layout.setSpacing(20)
-
-        # LEFT COLUMN
         left_col = QWidget()
         left_layout = QVBoxLayout(left_col)
         left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
         lbl_hey = QLabel("HEY THERE! I'M")
         lbl_hey.setStyleSheet("color: white; font-size: 24px; font-weight: bold; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;")
         lbl_hey.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(lbl_hey)
-
         lbl_name = QLabel()
         lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_pixmap = QPixmap("assets/bearnard_text.png")
@@ -334,34 +444,29 @@ class ChatWindow(QMainWindow):
         shadow.setOffset(2, 2)
         lbl_name.setGraphicsEffect(shadow)
         left_layout.addWidget(lbl_name)
-
         self.bear = BearAvatar(400, 400)
         left_layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        # MONITORING WIDGETS
+        self.lbl_mode = QLabel("CURRENT MODE: ⌨️ CHAT")
+        self.lbl_mode.setObjectName("ModeLabel")
+        self.lbl_mode.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(self.lbl_mode)
         self.lbl_system_status = QLabel("⚫ System Idle")
         self.lbl_system_status.setObjectName("StatusLabel")
         self.lbl_system_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(self.lbl_system_status)
-
         self.vol_bar = QProgressBar()
         self.vol_bar.setRange(0, 50)
         self.vol_bar.setFixedHeight(8)
         self.vol_bar.setTextVisible(False)
         left_layout.addWidget(self.vol_bar)
-        
         main_layout.addWidget(left_col, 35) 
-
-        # RIGHT COLUMN
         right_col = QWidget()
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(10, 10, 10, 10)
-
         header = QLabel("How can I help you today?")
         header.setStyleSheet("color: white; font-size: 26px; font-weight: 500;")
         header.setAlignment(Qt.AlignmentFlag.AlignRight)
         right_layout.addWidget(header)
-
         btn_row = QHBoxLayout()
         self.btn_voice = QPushButton("   Let's Talk!")
         self.btn_voice.setProperty("class", "ModeBtn")
@@ -369,18 +474,15 @@ class ChatWindow(QMainWindow):
         self.btn_voice.setIcon(QIcon("assets/microphone.png"))
         self.btn_voice.setIconSize(QSize(36, 36)) 
         self.btn_voice.clicked.connect(lambda: self.controller.set_mode("voice"))
-        
         self.btn_chat = QPushButton("   Chat with me!")
         self.btn_chat.setProperty("class", "ModeBtn")
         self.btn_chat.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_chat.setIcon(QIcon("assets/chat.png"))
         self.btn_chat.setIconSize(QSize(36, 36))
         self.btn_chat.clicked.connect(lambda: self.controller.set_mode("chat"))
-
         btn_row.addWidget(self.btn_voice)
         btn_row.addWidget(self.btn_chat)
         right_layout.addLayout(btn_row)
-
         card = QFrame()
         card.setObjectName("ChatCard")
         card_layout = QVBoxLayout(card)
@@ -393,7 +495,6 @@ class ChatWindow(QMainWindow):
         self.msg_layout.addStretch()
         self.scroll.setWidget(self.chat_content)
         card_layout.addWidget(self.scroll)
-
         input_pill = QFrame()
         input_pill.setObjectName("InputPill")
         input_pill.setFixedHeight(50)
@@ -424,10 +525,8 @@ class ChatWindow(QMainWindow):
         self.add_message("You", text)
         self.txt_input.clear()
         self.controller.worker.process_text(text)
-    
     def update_ui_state(self, state):
         self.bear.set_state(state)
-        # Update Status Label Colors
         if state == "IDLE":
             self.lbl_system_status.setText("👂 Waiting for Wake Word...")
             self.lbl_system_status.setStyleSheet("color: #00ff00; background-color: rgba(0,255,0,0.1); font-weight: bold; border-radius: 4px;")
@@ -442,69 +541,64 @@ class ChatWindow(QMainWindow):
             self.lbl_system_status.setStyleSheet("color: #ec4899; background-color: rgba(236,72,153,0.1); font-weight: bold; border-radius: 4px;")
         elif state == "CALIBRATING":
             self.lbl_system_status.setText("🔧 Calibrating Mic...")
-
     def update_volume(self, level):
         self.vol_bar.setValue(level)
+    def set_mode_visuals(self, mode):
+        if mode == "voice":
+            self.lbl_mode.setText("CURRENT MODE: 🎤 VOICE")
+            self.lbl_mode.setStyleSheet("color: #3b82f6; border: 2px solid #3b82f6; background-color: rgba(59,130,246,0.1);")
+            self.btn_voice.setStyleSheet(f"background-color: {ACTIVE_BTN_BG}; color: white; border: 2px solid white;")
+            self.btn_chat.setStyleSheet(f"background-color: {BUTTON_BG}; color: white; border: 1px solid rgba(255,255,255,0.1);")
+        else:
+            self.lbl_mode.setText("CURRENT MODE: ⌨️ CHAT")
+            self.lbl_mode.setStyleSheet("color: #ffffff; border: 2px solid #ffffff; background-color: rgba(255,255,255,0.1);")
+            self.btn_chat.setStyleSheet(f"background-color: {ACTIVE_BTN_BG}; color: white; border: 2px solid white;")
+            self.btn_voice.setStyleSheet(f"background-color: {BUTTON_BG}; color: white; border: 1px solid rgba(255,255,255,0.1);")
 
-# --- 5. VOICE WINDOW (The Avatar Screen) ---
+# --- 5. VOICE WINDOW ---
 class VoiceWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Bearnard - Voice Mode")
         self.resize(500, 700)
-        
         central = QWidget()
         layout = QVBoxLayout(central)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCentralWidget(central)
-
-        # 1. Status Label
         self.lbl_status = QLabel("Initializing...")
         self.lbl_status.setObjectName("StatusLabel")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_status)
-
-        # 2. Bear Avatar
         self.bear = BearAvatar(400, 400)
         layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        # 3. Manual "LISTEN" Button
         self.btn_listen = QPushButton("🎤 TAP TO SPEAK")
         self.btn_listen.setObjectName("MicBtn")
         self.btn_listen.setFixedSize(200, 80)
         self.btn_listen.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_listen.clicked.connect(self.manual_trigger)
         layout.addWidget(self.btn_listen, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        # 4. Hint Text
         self.lbl_hint = QLabel("Or say 'Hey Bearnard'")
         self.lbl_hint.setStyleSheet("color: #aaaaaa; font-size: 14px;")
         self.lbl_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_hint)
-
     def manual_trigger(self):
         self.controller.worker.trigger_wake()
-
     def update_ui_state(self, state):
         self.bear.set_state(state)
-        
         if state == "IDLE":
             self.lbl_status.setText("👂 Waiting for Wake Word...")
             self.lbl_status.setStyleSheet("color: #00ff00; background-color: rgba(0,0,0,0.5); border-radius: 10px; font-size: 16px; padding: 10px;")
             self.btn_listen.setEnabled(True)
             self.btn_listen.setText("🎤 TAP TO SPEAK")
-            
         elif state == "LISTENING":
             self.lbl_status.setText("🎙️ I'm Listening!")
             self.lbl_status.setStyleSheet("color: white; background-color: #3b82f6; border-radius: 10px; font-size: 16px; padding: 10px;")
             self.btn_listen.setEnabled(False)
             self.btn_listen.setText("Listening...")
-            
         elif state == "THINKING":
             self.lbl_status.setText("🧠 Thinking...")
             self.lbl_status.setStyleSheet("color: black; background-color: #eab308; border-radius: 10px; font-size: 16px; padding: 10px;")
-            
         elif state == "SPEAKING":
             self.lbl_status.setText("🗣️ Speaking...")
             self.lbl_status.setStyleSheet("color: white; background-color: #ec4899; border-radius: 10px; font-size: 16px; padding: 10px;")
@@ -515,29 +609,39 @@ class MainController:
         self.app = QApplication(sys.argv)
         self.app.setStyleSheet(STYLESHEET)
         
-        # Mic Selection
+        # 1. Start Worker First (So it initializes MLX/Model)
         mic_dialog = DeviceSelectionDialog()
         selected_mic_index = mic_dialog.selected_index if mic_dialog.exec() == QDialog.DialogCode.Accepted else None
-        
         print(f"🎤 MainController: Selected Mic Index = {selected_mic_index}")
+        
         self.worker = AIWorker(mic_index=selected_mic_index)
-        self.worker.start()
-
+        
+        # 2. Create Windows
         self.chat_window = ChatWindow(self)
         self.voice_window = VoiceWindow(self)
-
+        self.transcript_window = TranscriptWindow()
+        
+        # 3. Connect Signals (So logs appear immediately)
         self.worker.state_changed.connect(self.chat_window.update_ui_state)
         self.worker.state_changed.connect(self.voice_window.update_ui_state)
         self.worker.response_ready.connect(lambda t: self.chat_window.add_message("Bearnard", t))
         self.worker.mic_volume.connect(self.chat_window.update_volume)
-
+        self.worker.transcribed_text.connect(lambda t: self.chat_window.add_message("You", t))
+        self.worker.log_message.connect(self.transcript_window.log)
+        
+        # 4. Show & Start
         self.chat_window.show()
         self.voice_window.show()
+        self.transcript_window.show()
+        self.set_mode("chat")
+        
+        self.worker.start() # Start processing loop LAST
         
         sys.exit(self.app.exec())
 
     def set_mode(self, mode):
         self.worker.set_mode(mode)
+        self.chat_window.set_mode_visuals(mode)
 
 if __name__ == "__main__":
     MainController()
