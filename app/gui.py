@@ -28,9 +28,10 @@ from wake_word import WakeWordDetector
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QLineEdit, 
                              QScrollArea, QFrame, QGraphicsDropShadowEffect,
-                             QDialog, QComboBox, QDialogButtonBox, QProgressBar, QTextEdit)
+                             QDialog, QComboBox, QDialogButtonBox, QProgressBar, QTextEdit,
+                             QStackedLayout) # New Import: QStackedLayout
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QColor, QIcon
+from PyQt6.QtGui import QPixmap, QColor, QIcon, QResizeEvent # New Import: QResizeEvent
 
 # --- VISUAL CONSTANTS ---
 WHITE_PANEL = "#ffffff"     
@@ -107,7 +108,7 @@ STYLESHEET = f"""
     QComboBox {{ padding: 5px; border-radius: 5px; background-color: white; color: black; }}
 """
 
-# --- 1. MICROPHONE SELECTION DIALOG ---
+# --- 1. MICROPHONE SELECTION DIALOG (UNCHANGED) ---
 class DeviceSelectionDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -139,7 +140,7 @@ class DeviceSelectionDialog(QDialog):
             self.selected_index = self.devices[idx][0]
         self.accept()
 
-# --- 2. TRANSCRIPT LOG WINDOW ---
+# --- 2. TRANSCRIPT LOG WINDOW (UNCHANGED) ---
 class TranscriptWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -173,7 +174,7 @@ class TranscriptWindow(QMainWindow):
         sb.setValue(sb.maximum())
         self.last_log = text
 
-# --- 3. AI WORKER ---
+# --- 3. AI WORKER (UNCHANGED) ---
 class AIWorker(QThread):
     response_ready = pyqtSignal(str)
     state_changed = pyqtSignal(str)
@@ -380,37 +381,83 @@ Current Time: {current_time}
 
         self.state_changed.emit("IDLE")
 
-# --- 3. BEAR AVATAR ---
-class BearAvatar(QLabel):
-    # CHANGE 2: Increased default size from 400 to 450
+# --- NEW: STATIC BEAR AVATAR (For Chat Window) ---
+class StaticBearAvatar(QLabel):
     def __init__(self, width=450, height=450):
         super().__init__()
         self.setFixedSize(width, height)
-        self.setScaledContents(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("background-color: transparent;")
         
-        # --- MODIFICATION START ---
-        # 1. Load the actual image files
-        self.img_closed = QPixmap("assets/bearnard_closedMouth.png")
-        self.img_open = QPixmap("assets/bearnard_openMouth.png")
+        # NOTE: Assuming 'assets/bearnard_chat_static.png' exists.
+        img_static = QPixmap("assets/bearnard_chat_static.png")
         
-        # 2. Check if they loaded and scale them
-        if not self.img_closed.isNull():
-            self.img_closed = self.img_closed.scaled(width, height, 
-                                                     Qt.AspectRatioMode.KeepAspectRatio, 
-                                                     Qt.TransformationMode.SmoothTransformation)
-        if not self.img_open.isNull():
-            self.img_open = self.img_open.scaled(width, height, 
-                                                 Qt.AspectRatioMode.KeepAspectRatio, 
-                                                 Qt.TransformationMode.SmoothTransformation)
-        # --- MODIFICATION END ---
+        if not img_static.isNull():
+            # Scale for high quality view, keeping aspect ratio
+            img_scaled = img_static.scaled(width, height, 
+                                           Qt.AspectRatioMode.KeepAspectRatio, 
+                                           Qt.TransformationMode.SmoothTransformation)
+            self.setPixmap(img_scaled)
+        else:
+             # Fallback if image not found
+            self.setText("🐻 Static Bearnard")
+            self.setStyleSheet("color: white; font-size: 18px;")
+
+    def set_state(self, state):
+        # Static Bearnard does not animate
+        pass
+
+# --- RENAMED & MODIFIED: ANIMATED BEAR AVATAR (For Voice Window Background) ---
+class AnimatedBearAvatar(QLabel):
+    def __init__(self):
+        super().__init__()
+        # IMPORTANT: Remove setFixedSize to allow dynamic resizing
+        # self.setFixedSize(width, height) 
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setStyleSheet("background-color: black;")
         
-        # Set initial image to closed mouth
+        # 1. Load the original image files (keep original pixmaps)
+        self.img_closed_original = QPixmap("assets/bearnard_closedMouth.png")
+        self.img_open_original = QPixmap("assets/bearnard_openMouth.png")
+        
+        # Initialize scaled pixmaps
+        self.img_closed = self.img_closed_original
+        self.img_open = self.img_open_original
+        
+        # Set initial image
         self.setPixmap(self.img_closed)
         
         self.talk_timer = QTimer()
         self.talk_timer.timeout.connect(self.toggle_mouth)
         self.is_mouth_open = False
+
+    def resize_images(self, size):
+        """Scales the pixmaps without stretching, based on the new size."""
+        
+        # Use a large size for scaling to ensure it fills the background
+        # Qt.AspectRatioMode.KeepAspectRatioByExpanding ensures the image covers the entire area
+        # while Qt.TransformationMode.SmoothTransformation maintains quality.
+        if not self.img_closed_original.isNull():
+            self.img_closed = self.img_closed_original.scaled(
+                size, 
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+                Qt.TransformationMode.SmoothTransformation
+            )
+        if not self.img_open_original.isNull():
+            self.img_open = self.img_open_original.scaled(
+                size, 
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+                Qt.TransformationMode.SmoothTransformation
+            )
+        
+        # Re-set the current pixmap to apply the scaling
+        current_img = self.img_open if self.is_mouth_open else self.img_closed
+        self.setPixmap(current_img)
+
+    def resizeEvent(self, event: QResizeEvent):
+        """Called when the widget is resized. Triggers image rescaling."""
+        self.resize_images(event.size())
+        super().resizeEvent(event)
         
     def toggle_mouth(self):
         self.is_mouth_open = not self.is_mouth_open
@@ -425,7 +472,7 @@ class BearAvatar(QLabel):
             self.talk_timer.stop()
             self.setPixmap(self.img_closed)
 
-# --- 4. CHAT WINDOW ---
+# --- 4. CHAT WINDOW (UNCHANGED) ---
 class ChatWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
@@ -458,9 +505,11 @@ class ChatWindow(QMainWindow):
         shadow.setOffset(2, 2)
         lbl_name.setGraphicsEffect(shadow)
         left_layout.addWidget(lbl_name)
-        # Bear Avatar will use the new default size (450, 450)
-        self.bear = BearAvatar() 
+        
+        # --- MODIFICATION: Use StaticBearAvatar ---
+        self.bear = StaticBearAvatar() 
         left_layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.lbl_mode = QLabel("CURRENT MODE: ⌨️ CHAT")
         self.lbl_mode.setObjectName("ModeLabel")
         self.lbl_mode.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -483,13 +532,13 @@ class ChatWindow(QMainWindow):
         header.setAlignment(Qt.AlignmentFlag.AlignRight)
         right_layout.addWidget(header)
         btn_row = QHBoxLayout()
-        self.btn_voice = QPushButton("   Let's Talk!")
+        self.btn_voice = QPushButton("   Let's Talk!")
         self.btn_voice.setProperty("class", "ModeBtn")
         self.btn_voice.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_voice.setIcon(QIcon("assets/microphone.png"))
         self.btn_voice.setIconSize(QSize(50, 50)) 
         self.btn_voice.clicked.connect(lambda: self.controller.set_mode("voice"))
-        self.btn_chat = QPushButton("   Chat with me!")
+        self.btn_chat = QPushButton("   Chat with me!")
         self.btn_chat.setProperty("class", "ModeBtn")
         self.btn_chat.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_chat.setIcon(QIcon("assets/chat.png"))
@@ -570,7 +619,7 @@ class ChatWindow(QMainWindow):
             self.btn_chat.setStyleSheet(f"background-color: {ACTIVE_BTN_BG}; color: white; border: 2px solid white;")
             self.btn_voice.setStyleSheet(f"background-color: {BUTTON_BG}; color: white; border: 1px solid rgba(255,255,255,0.1);")
 
-# --- 5. VOICE WINDOW ---
+# --- 5. VOICE WINDOW (MODIFIED for Full-Screen Animated Background) ---
 class VoiceWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
@@ -578,22 +627,60 @@ class VoiceWindow(QMainWindow):
         self.setWindowTitle("Bearnard - Voice Mode")
         self.resize(500, 700)
         
-        # CHANGE 1: Set the background of the VoiceWindow to black
+        # Remove default QMainWindow background gradient via STYLESHEET
         self.setStyleSheet("QMainWindow { background-color: black; }") 
         
-        central = QWidget()
-        layout = QVBoxLayout(central)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setCentralWidget(central)
+        # 1. Create the Animated Bear which will serve as the background
+        self.bear = AnimatedBearAvatar() 
+        
+        # 2. Create an overlay widget for all other UI elements (status, buttons)
+        overlay_widget = QWidget()
+        overlay_layout = QVBoxLayout(overlay_widget)
+        overlay_layout.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        overlay_widget.setStyleSheet("background-color: transparent;")
+        
+        # Add Status Label
         self.lbl_status = QLabel("Initializing...")
         self.lbl_status.setObjectName("StatusLabel")
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_status)
-        # Bear Avatar will use the new default size (450, 450)
-        self.bear = BearAvatar() 
-        layout.addWidget(self.bear, alignment=Qt.AlignmentFlag.AlignCenter)
+        overlay_layout.addWidget(self.lbl_status)
+        
+        # Add Spacer to push status and mic button apart
+        overlay_layout.addStretch()
+        
+        # Add the 'Tap to Speak' button, only visible in voice mode (Re-added logic for button from earlier)
+        self.mic_btn = QPushButton()
+        mic_icon = QIcon("assets/microphone.png")
+        self.mic_btn.setIcon(mic_icon)
+        self.mic_btn.setIconSize(QSize(60, 60))
+        self.mic_btn.setObjectName("MicBtn")
+        self.mic_btn.setFixedSize(80, 80)
+        self.mic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mic_btn.clicked.connect(self.manual_trigger)
+        overlay_layout.addWidget(self.mic_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        self.lbl_mic_help = QLabel("Tap to Speak (If Wake Word Fails)")
+        self.lbl_mic_help.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        self.lbl_mic_help.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        overlay_layout.addWidget(self.lbl_mic_help)
+        
+        # 3. Use a QWidget with QStackedLayout to layer the bear and the overlay
+        central_widget = QWidget()
+        stacked_layout = QStackedLayout(central_widget)
+        stacked_layout.setStackingMode(QStackedLayout.StackingMode.StackAll) # Show all layers
+        stacked_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Layer 1: The animated bear (the background)
+        stacked_layout.addWidget(self.bear) 
+        
+        # Layer 2: The status label and buttons (the foreground)
+        stacked_layout.addWidget(overlay_widget) 
+        
+        self.setCentralWidget(central_widget)
+
     def manual_trigger(self):
         self.controller.worker.trigger_wake()
+        
     def update_ui_state(self, state):
         self.bear.set_state(state)
         if state == "IDLE":
@@ -610,7 +697,7 @@ class VoiceWindow(QMainWindow):
             self.lbl_status.setText("🗣️ Speaking...")
             self.lbl_status.setStyleSheet("color: white; background-color: #ec4899; border-radius: 10px; font-size: 16px; padding: 10px;")
 
-# --- 6. MAIN CONTROLLER ---
+# --- 6. MAIN CONTROLLER (UNCHANGED) ---
 class MainController:
     def __init__(self):
         self.app = QApplication(sys.argv)
