@@ -387,21 +387,40 @@ class BearAvatar(QLabel):
         self.setFixedSize(width, height)
         self.setScaledContents(True)
         self.setStyleSheet("background-color: transparent;")
-        self.img_closed = QPixmap(width, height)
-        self.img_closed.fill(QColor("transparent"))
-        self.img_open = QPixmap(width, height)
-        self.img_open.fill(QColor("transparent"))
+        
+        # --- MODIFICATION START ---
+        # 1. Load the actual image files
+        self.img_closed = QPixmap("assets/bearnard_closed.png")
+        self.img_open = QPixmap("assets/bearnard_open.png")
+        
+        # 2. Check if they loaded and scale them
+        if not self.img_closed.isNull():
+            self.img_closed = self.img_closed.scaled(width, height, 
+                                                     Qt.AspectRatioMode.KeepAspectRatio, 
+                                                     Qt.TransformationMode.SmoothTransformation)
+        if not self.img_open.isNull():
+            self.img_open = self.img_open.scaled(width, height, 
+                                                  Qt.AspectRatioMode.KeepAspectRatio, 
+                                                  Qt.TransformationMode.SmoothTransformation)
+        # --- MODIFICATION END ---
+        
+        # Set initial image to closed mouth
         self.setPixmap(self.img_closed)
+        
         self.talk_timer = QTimer()
         self.talk_timer.timeout.connect(self.toggle_mouth)
         self.is_mouth_open = False
+        
     def toggle_mouth(self):
         self.is_mouth_open = not self.is_mouth_open
         self.setPixmap(self.img_open if self.is_mouth_open else self.img_closed)
+        
     def set_state(self, state):
         if state == "SPEAKING":
+            # Start the mouth-toggle animation
             if not self.talk_timer.isActive(): self.talk_timer.start(150)
         else:
+            # Stop the animation and revert to the closed mouth
             self.talk_timer.stop()
             self.setPixmap(self.img_closed)
 
