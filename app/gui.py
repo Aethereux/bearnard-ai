@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QDialog, QComboBox, QDialogButtonBox, QProgressBar, QTextEdit,
                              QStackedLayout, QSizePolicy) 
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QColor, QIcon, QResizeEvent
+from PyQt6.QtGui import QPixmap, QColor, QIcon, QResizeEvent, QPainter
 
 # VISUAL CONSTANTS 
 WHITE_PANEL = "#ffffff"     
@@ -307,7 +307,7 @@ class AIWorker(QThread):
 
     def generate_response(self, user_text):
         self.state_changed.emit("THINKING")
-        
+    
         docs = self.rag.search(user_text, n_results=15)
         
         if docs:
@@ -325,6 +325,11 @@ class AIWorker(QThread):
         prompt = f"""[INST] You are Bearnard, the AI Concierge of iACADEMY (The Nexus), You are located at the Ground Floor - Lobby. 
 Current Time: {current_time}
 
+SPECIAL RULES:
+- If asked about NEAREST location, answer based on your location at Ground Floor - Lobby.
+- If asked for actions (greet, say hello), respond with a short greeting only.
+- If asked for the time, respond with the current time only.
+
 ### INSTRUCTIONS:
 1. **SOURCE OF TRUTH:** Answer questions using ONLY the information in the [CONTEXT] block below. Check for slang words or abbrevations used in iACADEMY. (CR for Comfort Room, CL for Computer Lab, etc.). check for lower case of the abreveations as well. the CONTEXT is your only source of truth. you must base your answers SOLELY on that information.
 2. **UNKNOWN INFO:** If the [CONTEXT] contains "NO_DATA_FOUND", say: "I'm sorry, I don't have that information in my current records." or If the [CONTEXT] doesn't make sense or logical, answer based on your knowledge regarding the CONTEXT. Make sure to analyze the CONTEXT properly and follows the appropriate questions. avoid making up answers. This doesn't apply on Special Rules.
@@ -334,10 +339,6 @@ Current Time: {current_time}
     - Do NOT use lists, bullet points, or markdown formatting.
     - If listing items, separate them with commas for natural speech.
 
-    SPECIAL RULES:
-- If asked about NEAREST location, answer based on your location at Ground Floor - Lobby.
-- If asked for actions (greet, say hello), respond with a short greeting only.
-- If asked for the time, respond with the current time only.
 
 ### [CONTEXT]
 {formatted_context}
@@ -348,20 +349,26 @@ Current Time: {current_time}
 ### [BEARNARD'S ANSWER]
 [/INST]"""
 
+
         token_limit = 1024 if "list" in user_text.lower() else 512
         
-        answer = self.llm.ask(prompt, max_tokens=token_limit)
-        self.response_ready.emit(answer)
-        self.state_changed.emit("SPEAKING")
-        self.mouth.speak(answer)
-        
-        word_count = len(answer.split())
-        wait_time = (word_count * 0.3) + 2.0
-        
-        time.sleep(wait_time)
+        try:
+            answer = self.llm.ask(prompt, max_tokens=token_limit)
+            self.response_ready.emit(answer)
+            self.state_changed.emit("SPEAKING")
+            self.mouth.speak(answer)
+            
+            word_count = len(answer.split())
+            wait_time = (word_count * 0.3) + 2.0
+            
+            time.sleep(wait_time)
 
-        if hasattr(self.wake, 'audio_buffer'):
-            self.wake.audio_buffer.clear()
+            if hasattr(self.wake, 'audio_buffer'):
+                self.wake.audio_buffer.clear()
+
+        except Exception as e:
+
+            print(f"Error generating response: {e}")
 
         self.state_changed.emit("IDLE")
 
@@ -392,59 +399,77 @@ class StaticBearAvatar(QLabel):
         pass
 
 # Bearnard Image in Voice Window
-class AnimatedBearAvatar(QLabel):
+class AnimatedBearAvatar(QWidget):
     def __init__(self):
         super().__init__()
         
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Allow widget to shrink freely (Ignored policy)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
         self.setStyleSheet("background-color: black;")
         
         self.img_closed_original = QPixmap("assets/bearnard_closedMouth.png")
         self.img_open_original = QPixmap("assets/bearnard_openMouth.png")
         
-        self.img_closed = self.img_closed_original
-        self.img_open = self.img_open_original
+        # Cache for scaled images
+        self.scaled_closed = None
+        self.scaled_open = None
+        self.offset_x = 0
+        self.offset_y = 0
         
-        self.setPixmap(self.img_closed)
+        self.is_mouth_open = False
         
         self.talk_timer = QTimer()
         self.talk_timer.timeout.connect(self.toggle_mouth)
-        self.is_mouth_open = False
 
-    def resize_images(self, size):
-        """Scales the pixmaps without stretching, based on the new size."""
+    def resizeEvent(self, event):
+        """Calculates scaling to FILL the window (Crop edges if needed)"""
+        size = event.size()
         
-        if not self.img_closed_original.isNull():
-            self.img_closed = self.img_closed_original.scaled(
-                size, 
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
-                Qt.TransformationMode.SmoothTransformation
-            )
-        if not self.img_open_original.isNull():
-            self.img_open = self.img_open_original.scaled(
-                size, 
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
-                Qt.TransformationMode.SmoothTransformation
-            )
-        
-        current_img = self.img_open if self.is_mouth_open else self.img_closed
-        self.setPixmap(current_img)
+        if self.img_closed_original.isNull():
+            return
 
-    def resizeEvent(self, event: QResizeEvent):
-        """Called when the widget is resized. Triggers image rescaling."""
-        self.resize_images(event.size())
-        super().resizeEvent(event)
+        # Scale to fill (KeepAspectRatioByExpanding)
+        self.scaled_closed = self.img_closed_original.scaled(
+            size, 
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+            Qt.TransformationMode.SmoothTransformation
+        )
+        self.scaled_open = self.img_open_original.scaled(
+            size, 
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+            Qt.TransformationMode.SmoothTransformation
+        )
         
+        # Center the image
+        self.offset_x = (size.width() - self.scaled_closed.width()) // 2
+        self.offset_y = (size.height() - self.scaled_closed.height()) // 2
+        
+        self.update()
+
+    def paintEvent(self, event):
+        """Draws the image centered"""
+        if not self.scaled_closed:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        
+        current_img = self.scaled_open if self.is_mouth_open else self.scaled_closed
+        
+        # Draw with calculated offset to center it
+        painter.drawPixmap(self.offset_x, self.offset_y, current_img)
+
     def toggle_mouth(self):
         self.is_mouth_open = not self.is_mouth_open
-        self.setPixmap(self.img_open if self.is_mouth_open else self.img_closed)
+        self.update() # Triggers paintEvent
         
     def set_state(self, state):
         if state == "SPEAKING":
             if not self.talk_timer.isActive(): self.talk_timer.start(150)
         else:
             self.talk_timer.stop()
-            self.setPixmap(self.img_closed)
+            self.is_mouth_open = False
+            self.update()
 
 # Chat Window
 class ChatWindow(QMainWindow):
@@ -574,12 +599,43 @@ class ChatWindow(QMainWindow):
         right_layout.addWidget(card)
         main_layout.addWidget(right_col, 65) 
 
+    def set_active_mode(self, mode):
+        # Base style matching the global stylesheet for .ModeBtn
+        base_style = f"""
+            QPushButton {{
+                background-color: {BUTTON_BG}; color: white; border-radius: 15px;
+                padding: 5px 20px; font-weight: bold; font-size: 15px; text-align: left;
+                border: 1px solid rgba(255,255,255,0.1);
+            }}
+            QPushButton:hover {{ background-color: #333333; }}
+        """
+        
+        # Active style with blue background and white border
+        active_style = f"""
+            QPushButton {{
+                background-color: {ACTIVE_BTN_BG}; color: white; border-radius: 15px;
+                padding: 5px 20px; font-weight: bold; font-size: 15px; text-align: left;
+                border: 2px solid white;
+            }}
+        """
+
+        if mode == "voice":
+            self.btn_voice.setStyleSheet(active_style)
+            self.btn_chat.setStyleSheet(base_style)
+        else:
+            self.btn_voice.setStyleSheet(base_style)
+            self.btn_chat.setStyleSheet(active_style)
+
     def add_message(self, sender, text):
         msg_lbl = QLabel(f"<b>{sender}:</b> {text}")
         msg_lbl.setProperty("class", "ChatMessage")
         msg_lbl.setWordWrap(True)
         self.msg_layout.addWidget(msg_lbl)
-        self.scroll.verticalScrollBar().setValue(self.scroll.verticalScrollBar().maximum())
+        
+        # Use QTimer to ensure the layout has updated its size *before* we scroll
+        QTimer.singleShot(10, lambda: self.scroll.verticalScrollBar().setValue(
+            self.scroll.verticalScrollBar().maximum()
+        ))
     
     def send_text(self):
         text = self.txt_input.text().strip()
@@ -614,7 +670,8 @@ class VoiceWindow(QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Bearnard - Voice Mode")
-        self.resize(512, 1536)
+        
+        self.resize(256, 768)
         
         self.setStyleSheet("QMainWindow { background-color: black; }") 
         
@@ -702,6 +759,8 @@ class MainController:
         self.chat_window.show()
         self.voice_window.show()
         self.transcript_window.show()
+
+        # Initialize default mode and visual state
         self.set_mode("chat")
         
         self.worker.start() 
@@ -710,6 +769,7 @@ class MainController:
 
     def set_mode(self, mode):
         self.worker.set_mode(mode)
+        self.chat_window.set_active_mode(mode)
 
 if __name__ == "__main__":
     MainController()

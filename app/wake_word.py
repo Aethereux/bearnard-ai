@@ -12,11 +12,13 @@ class WakeWordDetector:
         
         self.wake_variants = [
             "hey bearnard", "hey bernard", "hey burner", 
-            "ok bearnard", "okay bernard", "bearnard", "bernard", "hey"
+            "ok bearnard", "okay bernard", "bearnard", "bernard"
         ]
         
+        # SLIDING WINDOW: 2.0 seconds
         self.buffer_duration = 2.0  
         self.chunk_duration = 0.2   
+        
         chunks_in_buffer = int(self.buffer_duration / self.chunk_duration)
         self.audio_buffer = collections.deque(maxlen=chunks_in_buffer)
         
@@ -93,6 +95,9 @@ class WakeWordDetector:
                 
                 text = " ".join(s.text for s in segments).strip().lower()
                 clean_text = text.replace(",", "").replace(".", "").replace("!", "").strip()
+
+                if len(clean_text) > 15:
+                    continue
 
                 if not clean_text or clean_text in ["you", "thank you", "watching"]:
                     continue

@@ -9,13 +9,11 @@ class VoiceInput:
         self.sample_rate = sample_rate
         self.model = model 
         
-        # ALGORITHM PARAMETERS 
         self.silence_threshold = 0.01   
-        self.silence_duration = 1.2 
+        self.silence_duration = 1.2
 
     def adjust_for_ambient_noise(self, duration=1.0):
         print(f"\nCalibrating background noise on Device {self.device}...")
-        
         try:
             rec = sd.rec(
                 int(self.sample_rate * duration), 
@@ -25,29 +23,27 @@ class VoiceInput:
                 dtype='float32'
             )
             sd.wait()
-            
             rms = np.sqrt(np.mean(rec**2))
-            
             self.silence_threshold = max(0.005, rms * 1.5)
-            
             print(f"Threshold set to: {self.silence_threshold:.4f} (Noise Floor: {rms:.4f})")
-            
         except Exception as e:
             print(f"Calibration failed: {e}. Using default threshold.")
             self.silence_threshold = 0.01
 
     def record_until_silence(self, callback=None, max_seconds=30):
-        audio_queue = queue.Queue()
+        audio_queue = queue.Queue(maxsize=50)
         
         def audio_callback(indata, frames, time, status):
             if status:
                 print(status)
-            audio_queue.put(indata.copy())
+            try:
+                audio_queue.put_nowait(indata.copy())
+            except queue.Full:
+                pass 
 
         audio_buffer = []
         silence_timer = 0
         total_duration = 0
-        
         chunk_duration = 0.1
         chunk_samples = int(self.sample_rate * chunk_duration)
 
@@ -66,16 +62,14 @@ class VoiceInput:
                 total_duration += chunk_duration
 
                 vol = np.sqrt(np.mean(chunk**2))
-
                 if callback:
                     callback(vol)
                 
                 is_talking = vol > self.silence_threshold
-                
                 if is_talking:
-                    silence_timer = 0  # User is speaking
+                    silence_timer = 0
                 else:
-                    silence_timer += chunk_duration  # User paused
+                    silence_timer += chunk_duration
 
                 if silence_timer >= self.silence_duration:
                     break
@@ -97,7 +91,7 @@ class VoiceInput:
         try:
             segments, _ = self.model.transcribe(
                 audio_data, 
-                beam_size=5,
+                beam_size=1,
                 language="en",
                 condition_on_previous_text=False, 
                 vad_filter=True,
