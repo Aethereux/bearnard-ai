@@ -403,14 +403,12 @@ class AnimatedBearAvatar(QWidget):
     def __init__(self):
         super().__init__()
         
-        # Allow widget to shrink freely (Ignored policy)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
         self.setStyleSheet("background-color: black;")
         
         self.img_closed_original = QPixmap("assets/bearnard_closedMouth.png")
         self.img_open_original = QPixmap("assets/bearnard_openMouth.png")
         
-        # Cache for scaled images
         self.scaled_closed = None
         self.scaled_open = None
         self.offset_x = 0
@@ -428,7 +426,6 @@ class AnimatedBearAvatar(QWidget):
         if self.img_closed_original.isNull():
             return
 
-        # Scale to fill (KeepAspectRatioByExpanding)
         self.scaled_closed = self.img_closed_original.scaled(
             size, 
             Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
@@ -440,7 +437,6 @@ class AnimatedBearAvatar(QWidget):
             Qt.TransformationMode.SmoothTransformation
         )
         
-        # Center the image
         self.offset_x = (size.width() - self.scaled_closed.width()) // 2
         self.offset_y = (size.height() - self.scaled_closed.height()) // 2
         
@@ -456,12 +452,11 @@ class AnimatedBearAvatar(QWidget):
         
         current_img = self.scaled_open if self.is_mouth_open else self.scaled_closed
         
-        # Draw with calculated offset to center it
         painter.drawPixmap(self.offset_x, self.offset_y, current_img)
 
     def toggle_mouth(self):
         self.is_mouth_open = not self.is_mouth_open
-        self.update() # Triggers paintEvent
+        self.update() 
         
     def set_state(self, state):
         if state == "SPEAKING":
@@ -600,7 +595,6 @@ class ChatWindow(QMainWindow):
         main_layout.addWidget(right_col, 65) 
 
     def set_active_mode(self, mode):
-        # Base style matching the global stylesheet for .ModeBtn
         base_style = f"""
             QPushButton {{
                 background-color: {BUTTON_BG}; color: white; border-radius: 15px;
@@ -610,7 +604,6 @@ class ChatWindow(QMainWindow):
             QPushButton:hover {{ background-color: #333333; }}
         """
         
-        # Active style with blue background and white border
         active_style = f"""
             QPushButton {{
                 background-color: {ACTIVE_BTN_BG}; color: white; border-radius: 15px;
@@ -632,7 +625,6 @@ class ChatWindow(QMainWindow):
         msg_lbl.setWordWrap(True)
         self.msg_layout.addWidget(msg_lbl)
         
-        # Use QTimer to ensure the layout has updated its size *before* we scroll
         QTimer.singleShot(10, lambda: self.scroll.verticalScrollBar().setValue(
             self.scroll.verticalScrollBar().maximum()
         ))
@@ -760,7 +752,6 @@ class MainController:
         self.voice_window.show()
         self.transcript_window.show()
 
-        # Initialize default mode and visual state
         self.set_mode("chat")
         
         self.worker.start() 
