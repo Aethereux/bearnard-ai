@@ -355,21 +355,22 @@ SPECIAL RULES:
         try:
             answer = self.llm.ask(prompt, max_tokens=token_limit)
             self.response_ready.emit(answer)
+            
+            # --- SYNC FIX ---
+            # 1. Start Animation
             self.state_changed.emit("SPEAKING")
+            
+            # 2. Blocking Speak (Animation continues while this runs)
             self.mouth.speak(answer)
             
-            word_count = len(answer.split())
-            wait_time = (word_count * 0.3) + 2.0
-            
-            time.sleep(wait_time)
-
+            # 3. Clear buffer immediately (No sleep needed)
             if hasattr(self.wake, 'audio_buffer'):
                 self.wake.audio_buffer.clear()
 
         except Exception as e:
-
             print(f"Error generating response: {e}")
 
+        # 4. Stop Animation immediately after speech is done
         self.state_changed.emit("IDLE")
 
 
